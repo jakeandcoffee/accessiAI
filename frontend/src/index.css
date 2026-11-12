@@ -1,0 +1,120 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand: #6C8EFF;
+  --color-brand-light: #99B4FF;
+  --color-brand-dark: #1a1a2e;
+  --color-brand-50: rgba(108, 142, 255, 0.1);
+  --color-brand-100: rgba(108, 142, 255, 0.15);
+  --color-brand-500: #6C8EFF;
+  --color-brand-600: #5A7AEE;
+  --color-brand-700: #4866DD;
+  --color-sidebar: rgba(10, 10, 20, 0.6);
+  --color-sidebar-hover: rgba(255, 255, 255, 0.06);
+  --color-surface: rgba(255, 255, 255, 0.05);
+  --color-surface-dim: #0a0a14;
+  --color-ink: #e2e8f0;
+  --color-muted: #7a8ba8;
+  --color-border: rgba(255, 255, 255, 0.08);
+  --color-critical: #ff5c5c;
+  --color-serious: #ff9f43;
+  --color-moderate: #ffd43b;
+  --color-minor: #5c9cff;
+  --color-success: #4ade80;
+  --color-glass: rgba(255, 255, 255, 0.04);
+  --color-glass-border: rgba(255, 255, 255, 0.08);
+  --color-glass-hover: rgba(255, 255, 255, 0.08);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family:
+    "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background: var(--color-surface-dim);
+  color: var(--color-ink);
+}
+
+#root {
+  min-height: 100vh;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes pulse-ring {
+  0% {
+    transform: scale(0.8);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes gradient-shift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.animate-shimmer {
+  background: linear-gradient(90deg, rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.06) 50%, rgba(255,255,255,0.03) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+.animate-pulse-ring {
+  animation: pulse-ring 1.5s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.animate-gradient {
+  background-size: 200% 200%;
+  animation: gradient-shift 6s ease infinite;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+}
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}

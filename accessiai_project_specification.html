@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="AccessiAI — AI-Powered Accessibility Audit Platform project specification">
+<title>AccessiAI — Project Specification</title>
+<style>
+:root{--bg:#f5f7fb;--panel:#fff;--ink:#182230;--muted:#5b6778;--line:#e3e8ef;--brand:#3157d5;--brand2:#eaf0ff;--green:#087f5b;--code:#111827;--shadow:0 8px 28px rgba(20,35,70,.07)}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:90px}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.65 Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
+a{color:var(--brand);text-decoration:none}a:hover{text-decoration:underline}
+header{position:sticky;top:0;z-index:5;background:rgba(255,255,255,.94);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+.topbar{max-width:1280px;margin:auto;padding:12px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px}
+.brand{font-weight:800;letter-spacing:.2px}.brand span{color:var(--brand)}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+button{border:1px solid var(--line);background:white;color:var(--ink);padding:8px 12px;border-radius:9px;font-weight:650;cursor:pointer}
+button:hover{background:var(--brand2);border-color:#b8c8ff}
+.layout{max-width:1280px;margin:28px auto;padding:0 24px;display:grid;grid-template-columns:260px minmax(0,1fr);gap:28px}
+nav{position:sticky;top:78px;align-self:start;max-height:calc(100vh - 100px);overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;box-shadow:var(--shadow)}
+nav h2{font-size:13px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin:0 0 10px}
+nav a{display:block;padding:6px 9px;border-radius:7px;color:#354154;font-size:13px}
+nav a:hover{background:var(--brand2);text-decoration:none}
+main{min-width:0}
+.hero{background:linear-gradient(130deg,#152b68,#3157d5 65%,#6687ef);color:white;border-radius:18px;padding:42px;margin-bottom:22px;box-shadow:var(--shadow)}
+.eyebrow{text-transform:uppercase;letter-spacing:1.5px;font-size:12px;font-weight:750;opacity:.8}
+h1{font-size:clamp(32px,5vw,48px);line-height:1.12;margin:8px 0 14px}
+.hero p{max-width:760px;color:#e7edff;font-size:18px}
+.pills{display:flex;gap:8px;flex-wrap:wrap;margin-top:22px}
+.pill{border:1px solid #ffffff55;background:#ffffff18;border-radius:999px;padding:5px 11px;font-size:13px}
+section,.doc-card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:26px;margin:0 0 18px;box-shadow:var(--shadow)}
+h2{font-size:25px;line-height:1.25;margin:0 0 18px}
+h3{font-size:18px;margin:24px 0 8px}
+h4{font-size:15px;margin:18px 0 6px}
+p{margin:8px 0 14px}
+ul,ol{padding-left:24px}
+li{margin:4px 0}
+.muted{color:var(--muted)}
+.callout{border-left:4px solid var(--brand);background:var(--brand2);padding:13px 16px;border-radius:8px;margin:16px 0}
+.callout.warn{border-color:#d97706;background:#fff7e8}
+table{width:100%;border-collapse:collapse;margin:14px 0 18px;font-size:14px}
+th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{background:#f7f9fc;font-weight:750}
+.table-wrap{overflow-x:auto}
+pre{background:var(--code);color:#e5e7eb;border-radius:10px;padding:17px;overflow:auto;font-size:13px;line-height:1.55}
+code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace}
+:not(pre)>code{background:#eef1f6;padding:2px 5px;border-radius:5px;color:#26334a}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.tile{border:1px solid var(--line);border-radius:11px;padding:16px;background:#fcfdff}
+.tile strong{display:block;margin-bottom:5px}
+.checklist{list-style:none;padding:0}
+.checklist li{padding:7px 0;border-bottom:1px solid #edf0f4}
+.checklist input{width:17px;height:17px;vertical-align:middle;margin-right:9px;accent-color:var(--green)}
+footer{text-align:center;color:var(--muted);padding:28px;font-size:13px}
+@media(max-width:900px){.layout{grid-template-columns:1fr}nav{position:relative;top:auto;max-height:none}.navlinks{columns:2}}
+@media(max-width:600px){.topbar{padding:10px 14px}.layout{padding:0 12px;margin:14px auto}.hero{padding:26px 22px}section{padding:20px}.grid{grid-template-columns:1fr}.navlinks{columns:1}.actions button{font-size:12px;padding:7px 9px}}
+@media print{body{background:white}.topbar,nav,.actions{display:none!important}.layout{display:block;max-width:none;margin:0;padding:0}.hero,section{box-shadow:none;break-inside:avoid}.hero{background:#203b87!important;print-color-adjust:exact}.layout main{width:100%}a{color:inherit}}
+</style>
+</head>
+<body>
+<header>
+  <div class="topbar">
+    <div class="brand">Accessi<span>AI</span> <span class="muted">/ Project specification</span></div>
+    <div class="actions">
+      <button onclick="window.print()">Print / Save PDF</button>
+      <button onclick="document.querySelectorAll('.checklist input').forEach(x=>x.checked=false)">Reset checklist</button>
+    </div>
+  </div>
+</header>
+<div class="layout">
+<nav aria-label="Table of contents">
+  <h2>Contents</h2>
+  <div class="navlinks">
+    <a href="#overview">1. Project overview</a>
+    <a href="#features">2. Core features</a>
+    <a href="#architecture">3. Technical architecture</a>
+    <a href="#database">4. Database design</a>
+    <a href="#frontend">5. Frontend structure</a>
+    <a href="#backend">6. Backend structure</a>
+    <a href="#wcag">7. WCAG requirements</a>
+    <a href="#security">8. Security</a>
+    <a href="#testing">9. Testing strategy</a>
+    <a href="#roadmap">10. Development roadmap</a>
+    <a href="#deployment">11. Deployment</a>
+    <a href="#github">12. GitHub structure</a>
+    <a href="#resume">13. Resume description</a>
+    <a href="#success">14. Success criteria</a>
+    <a href="#priorities">15. Implementation priorities</a>
+    <a href="#scan-phases">16. 6-Phase scan engine</a>
+    <a href="#objective">17. Final objective</a>
+  </div>
+</nav>
+<main>
+<div class="hero">
+  <div class="eyebrow">Full-stack portfolio project · SaaS application</div>
+  <h1>AccessiAI</h1>
+  <p>AI-Powered Accessibility Audit Platform</p>
+  <p>Automatically scan websites for accessibility issues, identify WCAG violations, and use AI to explain problems and recommend code fixes.</p>
+  <div class="pills"><span class="pill">React + TypeScript</span><span class="pill">Tailwind CSS</span><span class="pill">Python + FastAPI</span><span class="pill">GraphQL</span><span class="pill">PostgreSQL</span><span class="pill">WCAG 2.2 AA</span></div>
+</div>
+
+<section id="overview">
+<h2>1. Project Overview</h2>
+<h3>1.1 What is AccessiAI?</h3>
+<p>AccessiAI is an AI-powered web accessibility auditing platform that helps developers, designers, and businesses identify and fix accessibility problems on their websites.</p>
+<p>Users can enter a website URL, run an automated accessibility scan, review WCAG violations, receive AI-generated explanations, and track their remediation progress. The platform provides a centralized dashboard for managing website accessibility.</p>
+<h3>1.2 Problem Statement</h3>
+<p>Many websites contain accessibility problems that make them difficult for people with disabilities to use. Common problems include:</p>
+<ul><li>Missing image alternative text.</li><li>Insufficient color contrast.</li><li>Missing form labels.</li><li>Incorrect heading structures.</li><li>Improper ARIA attributes.</li><li>Keyboard navigation problems.</li><li>Inaccessible buttons and links.</li><li>Incorrect semantic HTML.</li></ul>
+<p>AccessiAI simplifies investigation by combining automated accessibility testing with AI-powered explanations and remediation suggestions.</p>
+<h3>1.3 Target Users</h3>
+<ul><li>Frontend and web developers.</li><li>UI/UX designers.</li><li>Accessibility specialists.</li><li>Software development teams.</li><li>Small and medium-sized businesses.</li></ul>
+</section>
+
+<section id="features">
+<h2>2. Core Features</h2>
+<h3>2.1 User Authentication</h3>
+<ul><li>User registration and login.</li><li>JWT authentication and secure password hashing.</li><li>Logout and protected routes.</li><li>User profile management.</li><li>Role-based authorization.</li></ul>
+<h3>2.2 Website Management</h3>
+<p>Users can add, edit, delete, and view multiple websites, see each website's latest accessibility score, review scan history, and launch new scans.</p>
+<div class="table-wrap"><table><thead><tr><th>Website</th><th>Latest score</th><th>Last scanned</th><th>Status</th></tr></thead><tbody><tr><td>example.com</td><td>92/100</td><td>Nov 10</td><td>Good</td></tr><tr><td>company.com</td><td>67/100</td><td>Nov 9</td><td>Needs improvement</td></tr><tr><td>shop.com</td><td>45/100</td><td>Nov 8</td><td>Poor</td></tr></tbody></table></div>
+<h3>2.3 Website Accessibility Scanner</h3>
+<ol><li>User enters a website URL.</li><li>Backend validates the URL and applies security restrictions.</li><li>Playwright opens the website in a controlled browser.</li><li>axe-core analyzes the rendered page.</li><li>Accessibility violations and affected elements are collected.</li><li>Results are saved in PostgreSQL.</li><li>Frontend displays the results.</li></ol>
+<p>The scanner should collect the rule ID, description, impact, WCAG success criteria, affected elements, CSS selector, HTML snippet, remediation guidance, and documentation URL.</p>
+<div class="table-wrap"><table><thead><tr><th>Rule</th><th>Impact</th><th>WCAG</th></tr></thead><tbody><tr><td>image-alt</td><td>Critical</td><td>1.1.1</td></tr><tr><td>color-contrast</td><td>Serious</td><td>1.4.3</td></tr><tr><td>label</td><td>Critical</td><td>3.3.2</td></tr><tr><td>button-name</td><td>Critical</td><td>4.1.2</td></tr></tbody></table></div>
+<div class="callout warn"><strong>Important:</strong> Automated scanning detects many issues but cannot establish complete WCAG compliance. Manual testing is also required.</div>
+<h3>2.4 Accessibility Dashboard</h3>
+<p>Display overall accessibility score, total scans, total violations, critical/serious/moderate/minor counts, historical score trends, recently scanned websites, and recently discovered issues.</p>
+<pre>ACCESSIBILITY DASHBOARD
+
+Overall Score: 82 / 100
+
+Total Websites:       5
+Total Scans:         24
+Total Violations:    37
+
+Critical:             5
+Serious:             12
+Moderate:            15
+Minor:                5
+
+SCORE HISTORY
+Website       Previous       Current
+example.com      65            82
+company.com      70            91
+shop.com         40            58</pre>
+<p>Label the score as an internal progress indicator, not an official WCAG certification.</p>
+<h3>2.5 Accessibility Issue Management</h3>
+<ul><li>View and search violations.</li><li>Filter by severity and WCAG criteria.</li><li>Search by rule ID.</li><li>Inspect affected HTML elements and code snippets.</li><li>Mark issues as Open, In Progress, Resolved, or Ignored.</li><li>Add notes and track remediation progress.</li></ul>
+<h3>2.6 AI-Powered Accessibility Assistant</h3>
+<p>Integrate the OpenAI API so users can select a violation and request an explanation, an explanation of the affected WCAG criteria, suggested HTML or React fixes, the user impact, and testing recommendations.</p>
+<div class="grid">
+  <div class="tile"><strong>Detected issue</strong><pre>&lt;img src="product.jpg"&gt;</pre></div>
+  <div class="tile"><strong>Suggested fix</strong><pre>&lt;img
+  src="product.jpg"
+  alt="Blue running shoes"
+&gt;</pre></div>
+</div>
+<p>AI suggestions must be reviewed by developers. AI must not claim generated fixes guarantee compliance. Avoid sending sensitive website information to external AI services and provide a fallback when the AI service is unavailable.</p>
+<h3>2.7 Accessibility Reports</h3>
+<p>Reports should include website URL, scan date, score, WCAG version and target, total violations, severity breakdown, violation details, AI suggestions, and remediation status. Support PDF and JSON exports.</p>
+<h3>2.8 Scan History</h3>
+<p>Show scan date, duration, website URL, violation count, previous and current score, and comparisons between scans.</p>
+</section>
+
+<section id="architecture">
+<h2>3. Technical Architecture</h2>
+<h3>3.1 Architecture Overview</h3>
+<pre>                   ACCESSIAI
+                       |
+             React + TypeScript
+                 Tailwind CSS
+                       |
+                TanStack Query
+                       |
+                API Communication
+                       |
+             ---------------------
+             |                   |
+          REST API           GraphQL API
+             |                   |
+           FastAPI          Strawberry
+             |                   |
+             ---------------------
+                       |
+                 Python Services
+                       |
+          ---------------------------
+          |            |            |
+       Scanner        AI         Reports
+          |            |            |
+       Playwright   OpenAI API   PDF Engine
+       axe-core
+          |
+       SQLAlchemy
+          |
+      PostgreSQL</pre>
+<h3>3.2 Frontend Architecture</h3>
+<p><strong>Technologies:</strong> React, TypeScript, Tailwind CSS, React Router, TanStack Query, Recharts, React Hook Form, and Zod.</p>
+<p><strong>Responsibilities:</strong> render the UI, handle interactions and routing, communicate with APIs, display scan results and analytics, validate forms, and implement accessible components.</p>
+<h3>3.3 Backend Architecture</h3>
+<p><strong>Technologies:</strong> Python, FastAPI, Strawberry GraphQL, SQLAlchemy, PostgreSQL, Pydantic, and JWT.</p>
+<p><strong>Responsibilities:</strong> authentication, website and scan management, accessibility analysis, database operations, AI integration, report generation, and API authorization.</p>
+<h3>3.4 REST API and GraphQL Responsibilities</h3>
+<p>Use REST for resource operations and commands; use GraphQL for flexible dashboard queries and related data retrieval.</p>
+<h4>REST API examples</h4>
+<pre>POST   /api/auth/register
+POST   /api/auth/login
+
+POST   /api/websites
+GET    /api/websites
+GET    /api/websites/{website_id}
+PUT    /api/websites/{website_id}
+DELETE /api/websites/{website_id}
+
+POST   /api/websites/{website_id}/scans
+GET    /api/scans/{scan_id}
+GET    /api/scans/{scan_id}/report
+
+POST   /api/violations/{violation_id}/ai-analysis
+PATCH  /api/violations/{violation_id}/status
+
+GET    /api/reports/{report_id}/download</pre>
+<h4>GraphQL dashboard query</h4>
+<pre>query GetDashboard {
+  dashboard {
+    totalWebsites
+    totalScans
+    totalViolations
+    accessibilityScore
+    severityBreakdown {
+      severity
+      count
+    }
+    recentScans {
+      id
+      websiteUrl
+      score
+      scanDate
+      totalViolations
+    }
+  }
+}</pre>
+<h4>GraphQL violations query</h4>
+<pre>query GetViolations($websiteId: ID!) {
+  violations(websiteId: $websiteId) {
+    id
+    ruleId
+    description
+    impact
+    wcagCriteria
+    status
+    affectedElements {
+      selector
+      html
+    }
+  }
+}</pre>
+</section>
+
+<section id="database">
+<h2>4. Database Design</h2>
+<p>Use PostgreSQL with SQLAlchemy.</p>
+<div class="table-wrap"><table><thead><tr><th>Table</th><th>Fields</th></tr></thead><tbody>
+<tr><td><strong>Users</strong></td><td>id (UUID, PK), email, password_hash, full_name, role, created_at</td></tr>
+<tr><td><strong>Websites</strong></td><td>id (UUID, PK), user_id (FK), name, url, created_at</td></tr>
+<tr><td><strong>Scans</strong></td><td>id (UUID, PK), website_id (FK), status, accessibility_score, total_violations, scan_started_at, scan_completed_at</td></tr>
+<tr><td><strong>Violations</strong></td><td>id (UUID, PK), scan_id (FK), rule_id, description, impact, wcag_criteria, status, help_url, created_at</td></tr>
+<tr><td><strong>Affected Elements</strong></td><td>id (UUID, PK), violation_id (FK), selector, html, failure_summary</td></tr>
+<tr><td><strong>AI Analyses</strong></td><td>id (UUID, PK), violation_id (FK), explanation, suggested_fix, model_name, created_at</td></tr>
+<tr><td><strong>Issue Comments</strong></td><td>id (UUID, PK), violation_id (FK), user_id (FK), comment, created_at</td></tr>
+</tbody></table></div>
+<h3>4.1 Database Relationships</h3>
+<pre>User 1 ─── N Websites
+Website 1 ─── N Scans
+Scan 1 ─── N Violations
+Violation 1 ─── N Affected Elements
+Violation 1 ─── N AI Analyses
+Violation 1 ─── N Issue Comments
+User 1 ─── N Issue Comments</pre>
+</section>
+
+<section id="frontend">
+<h2>5. Frontend Folder Structure</h2>
+<pre>frontend/
+├── public/
+├── src/
+│   ├── assets/
+│   ├── components/
+│   │   ├── common/
+│   │   ├── layout/
+│   │   ├── dashboard/
+│   │   ├── websites/
+│   │   ├── scanner/
+│   │   ├── violations/
+│   │   └── accessibility/
+│   ├── pages/
+│   │   ├── Login.tsx
+│   │   ├── Register.tsx
+│   │   ├── Dashboard.tsx
+│   │   ├── Websites.tsx
+│   │   ├── WebsiteDetails.tsx
+│   │   ├── ScanResults.tsx
+│   │   ├── Violations.tsx
+│   │   ├── Reports.tsx
+│   │   └── Settings.tsx
+│   ├── hooks/
+│   │   ├── useAuth.ts
+│   │   ├── useWebsites.ts
+│   │   └── useScans.ts
+│   ├── services/
+│   │   ├── api.ts
+│   │   ├── authService.ts
+│   │   ├── websiteService.ts
+│   │   └── scanService.ts
+│   ├── graphql/
+│   │   ├── queries/
+│   │   └── mutations/
+│   ├── context/
+│   ├── types/
+│   ├── utils/
+│   ├── routes/
+│   ├── App.tsx
+│   └── main.tsx
+├── package.json
+└── vite.config.ts</pre>
+</section>
+
+<section id="backend">
+<h2>6. Backend Folder Structure</h2>
+<pre>backend/
+├── app/
+│   ├── api/
+│   │   ├── routes/
+│   │   │   ├── auth.py
+│   │   │   ├── websites.py
+│   │   │   ├── scans.py
+│   │   │   ├── violations.py
+│   │   │   └── reports.py
+│   │   └── dependencies.py
+│   ├── graphql/
+│   │   ├── schema.py
+│   │   ├── queries.py
+│   │   ├── mutations.py
+│   │   └── types.py
+│   ├── models/
+│   │   ├── user.py
+│   │   ├── website.py
+│   │   ├── scan.py
+│   │   ├── violation.py
+│   │   └── comment.py
+│   ├── schemas/
+│   │   ├── auth.py
+│   │   ├── website.py
+│   │   └── scan.py
+│   ├── services/
+│   │   ├── auth_service.py
+│   │   ├── website_service.py
+│   │   ├── scan_service.py
+│   │   ├── accessibility_service.py
+│   │   ├── ai_service.py
+│   │   └── report_service.py
+│   ├── scanner/
+│   │   ├── browser.py
+│   │   ├── axe_runner.py
+│   │   └── result_parser.py
+│   ├── database/
+│   │   ├── connection.py
+│   │   └── base.py
+│   ├── core/
+│   │   ├── config.py
+│   │   ├── security.py
+│   │   └── permissions.py
+│   └── main.py
+├── migrations/
+├── tests/
+├── requirements.txt
+└── .env.example</pre>
+</section>
+
+<section id="wcag">
+<h2>7. WCAG Accessibility Requirements</h2>
+<p><strong>Target:</strong> WCAG 2.2 Level AA. The AccessiAI application itself must demonstrate accessibility best practices.</p>
+<h3>7.1 Semantic HTML</h3><p>Use appropriate elements such as <code>header</code>, <code>nav</code>, <code>main</code>, <code>section</code>, <code>article</code>, <code>footer</code>, <code>button</code>, <code>form</code>, and <code>label</code>. Avoid using generic div elements for everything.</p>
+<h3>7.2 Keyboard Navigation</h3><ul><li>Tab and Shift + Tab navigation.</li><li>Enter and Space activation where appropriate.</li><li>Escape to close dialogs.</li><li>Visible focus indicators and logical focus order.</li><li>No keyboard traps.</li></ul>
+<h3>7.3 Screen Reader Support</h3><ul><li>Meaningful accessible names.</li><li>Appropriate ARIA attributes when native HTML is insufficient.</li><li>Accessible form labels and error messages.</li><li>Announcements for dynamic content.</li><li>Proper dialog semantics.</li></ul>
+<h3>7.4 Color Contrast</h3><ul><li>At least 4.5:1 for normal text.</li><li>At least 3:1 for large text.</li><li>Check non-text contrast for relevant controls and graphical objects.</li></ul>
+<h3>7.5 Forms</h3><ul><li>Every input has an accessible label.</li><li>Required fields are identified.</li><li>Validation errors are clearly communicated and associated with inputs.</li><li>Instructions are available before submission.</li></ul>
+<h3>7.6 Responsive Design</h3><p>Support desktop, laptop, tablet, and mobile layouts, including zoom and reflow without loss of functionality.</p>
+<h3>7.7 Accessibility Testing</h3><p>Use axe-core, Playwright, Lighthouse, NVDA screen reader, and keyboard-only testing. Test the AccessiAI application itself, not just the websites it scans.</p>
+</section>
+
+<section id="security">
+<h2>8. Security Requirements</h2>
+<ul><li>Password hashing using Argon2id or bcrypt.</li><li>JWT authentication with appropriate expiration.</li><li>Authorization checks for every user-owned resource.</li><li>Input validation using Pydantic.</li><li>SQL injection prevention through SQLAlchemy.</li><li>Rate limiting and CORS restrictions.</li><li>Environment variables for API keys.</li><li>Secure error handling and HTTPS in production.</li></ul>
+<h3>Scanner Security — SSRF Protection</h3>
+<p>Because the platform scans external websites, the scanning service must protect against Server-Side Request Forgery (SSRF).</p>
+<ul><li>Allow only HTTP and HTTPS.</li><li>Block localhost, private IP ranges, and cloud metadata endpoints.</li><li>Validate DNS resolution and revalidate redirects.</li><li>Restrict browser access to internal networks.</li><li>Limit scan duration and resource consumption.</li><li>Run browser workers in isolated environments.</li><li>Apply page and response size limits.</li></ul>
+<div class="callout warn"><strong>Security rule:</strong> Never allow an arbitrary website to use the scanner to access internal infrastructure.</div>
+</section>
+
+<section id="testing">
+<h2>9. Testing Strategy</h2>
+<h3>Frontend Testing</h3><p><strong>Tools:</strong> Vitest, React Testing Library, axe-core, Playwright.</p><p>Test component rendering, form validation, authentication flows, API error handling, dashboard data, keyboard navigation, screen reader accessibility, and responsive layouts.</p>
+<h3>Backend Testing</h3><p><strong>Tools:</strong> Pytest, HTTPX, pytest-asyncio.</p><p>Test authentication, authorization, REST endpoints, GraphQL queries and mutations, database relationships, scanner results, AI service failures, report generation, and SSRF protections.</p>
+<h3>End-to-End Testing</h3>
+<ol><li>Register a user.</li><li>Log in.</li><li>Add a website.</li><li>Run an accessibility scan.</li><li>View violations.</li><li>Request AI analysis.</li><li>Update an issue status.</li><li>Generate a PDF report.</li></ol>
+</section>
+
+<section id="roadmap">
+<h2>10. Development Roadmap</h2>
+<div class="table-wrap"><table><thead><tr><th>Phase</th><th>Tasks</th><th>Deliverable</th></tr></thead><tbody>
+<tr><td>1</td><td>Project setup, React, Tailwind, FastAPI</td><td>Running application</td></tr>
+<tr><td>2</td><td>Dashboard and responsive UI</td><td>Frontend MVP</td></tr>
+<tr><td>3</td><td>PostgreSQL and SQLAlchemy</td><td>Database integration</td></tr>
+<tr><td>4</td><td>Authentication and authorization</td><td>Secure login</td></tr>
+<tr><td>5</td><td>REST API and GraphQL</td><td>API integration</td></tr>
+<tr><td>6</td><td>Playwright and axe-core</td><td>Website scanner</td></tr>
+<tr><td>7</td><td>Violation management</td><td>Issue tracking</td></tr>
+<tr><td>8</td><td>OpenAI integration</td><td>AI assistant</td></tr>
+<tr><td>9</td><td>PDF and JSON reports</td><td>Reporting</td></tr>
+<tr><td>10</td><td>WCAG testing and security</td><td>Quality assurance</td></tr>
+<tr><td>11</td><td>Deployment</td><td>Live application</td></tr>
+</tbody></table></div>
+<p class="muted">Suggested timeline: approximately 6–8 weeks, depending on development time and AI-assisted implementation.</p>
+</section>
+
+<section id="deployment">
+<h2>11. Deployment Architecture</h2>
+<h3>Frontend — Vercel</h3><ul><li>Host React application.</li><li>Configure production environment variables.</li><li>Connect frontend to backend API.</li><li>Configure custom domain.</li></ul>
+<h3>Backend — Render or equivalent</h3><ul><li>Host FastAPI and Strawberry GraphQL.</li><li>Run Playwright scanning workers.</li><li>Connect to PostgreSQL.</li><li>Configure secure environment variables.</li></ul>
+<h3>Database</h3><p>Use managed PostgreSQL.</p>
+<h3>Environment Variables</h3>
+<pre># Database
+DATABASE_URL=
+
+# Authentication
+JWT_SECRET_KEY=
+
+# OpenAI
+OPENAI_API_KEY=
+
+# Application
+FRONTEND_URL=
+BACKEND_URL=
+
+# Security
+ALLOWED_ORIGINS=</pre>
+<p>Never commit actual API keys or secrets to GitHub.</p>
+</section>
+
+<section id="github">
+<h2>12. GitHub Repository Structure</h2>
+<pre>accessiai/
+├── frontend/
+├── backend/
+├── docs/
+│   ├── architecture.md
+│   ├── database.md
+│   ├── api-documentation.md
+│   ├── accessibility.md
+│   └── security.md
+├── screenshots/
+├── README.md
+├── CLAUDE.md
+├── .gitignore
+└── docker-compose.yml</pre>
+<p>Include clear installation instructions, architecture documentation, API documentation, database diagrams, screenshots, demo credentials if applicable, example environment variables, and testing instructions.</p>
+</section>
+
+<section id="resume">
+<h2>13. Resume Description</h2>
+<h3>AI-Powered Accessibility Audit Platform — AccessiAI</h3>
+<p><strong>Technologies:</strong> ReactJS, TypeScript, Tailwind CSS, Python, FastAPI, GraphQL, Strawberry, PostgreSQL, SQLAlchemy, OpenAI API, Playwright, axe-core.</p>
+<ul><li>Developed a full-stack accessibility auditing platform using ReactJS, Tailwind CSS, Python, and FastAPI.</li><li>Designed RESTful APIs and GraphQL endpoints for website scanning, dashboard analytics, and accessibility issue management.</li><li>Integrated Playwright and axe-core to automate website accessibility testing and identify WCAG violations.</li><li>Implemented AI-powered accessibility analysis to explain violations and generate suggested code remediation.</li><li>Developed responsive and accessible UI components following WCAG 2.2 AA guidelines.</li><li>Implemented JWT authentication, database relationships, and interactive reporting dashboards using PostgreSQL.</li></ul>
+<div class="callout">Only list features that have actually been implemented and verified.</div>
+</section>
+
+<section id="success">
+<h2>14. Project Success Criteria</h2>
+<p>Check off items as they are completed. Your progress stays available while this page remains open.</p>
+<ul class="checklist">
+<li><label><input type="checkbox">Users can register and log in.</label></li>
+<li><label><input type="checkbox">Users can manage multiple websites.</label></li>
+<li><label><input type="checkbox">Users can scan publicly accessible websites safely.</label></li>
+<li><label><input type="checkbox">Accessibility violations are detected and stored.</label></li>
+<li><label><input type="checkbox">Dashboard displays scan results and trends.</label></li>
+<li><label><input type="checkbox">Users can filter and manage violations.</label></li>
+<li><label><input type="checkbox">AI explains accessibility issues.</label></li>
+<li><label><input type="checkbox">AI generates remediation suggestions.</label></li>
+<li><label><input type="checkbox">REST APIs work correctly.</label></li>
+<li><label><input type="checkbox">GraphQL queries and mutations work correctly.</label></li>
+<li><label><input type="checkbox">PostgreSQL stores application data.</label></li>
+<li><label><input type="checkbox">Users can export PDF reports.</label></li>
+<li><label><input type="checkbox">Application supports keyboard navigation.</label></li>
+<li><label><input type="checkbox">Automated accessibility checks are passing for applicable tested criteria.</label></li>
+<li><label><input type="checkbox">Manual WCAG testing is documented.</label></li>
+<li><label><input type="checkbox">Application is deployed and accessible through a live URL.</label></li>
+<li><label><input type="checkbox">GitHub repository contains documentation and screenshots.</label></li>
+</ul>
+</section>
+
+<section id="priorities">
+<h2>15. Recommended Implementation Priorities</h2>
+<div class="grid">
+<div class="tile"><strong>MVP — Build First</strong><ol><li>React dashboard.</li><li>FastAPI backend.</li><li>PostgreSQL database.</li><li>JWT authentication.</li><li>Website management.</li><li>Playwright + axe-core scanner.</li><li>Violation dashboard.</li><li>WCAG 2.2 AA implementation.</li></ol></div>
+<div class="tile"><strong>Advanced Features — Build Second</strong><ol><li>GraphQL integration.</li><li>OpenAI-powered explanations.</li><li>AI-generated React/HTML fixes.</li><li>Scan history comparison.</li><li>PDF reports.</li><li>Advanced analytics.</li></ol></div>
+<div class="tile"><strong>Portfolio Polish — Build Last</strong><ol><li>Responsive design.</li><li>Comprehensive accessibility testing.</li><li>Unit and integration tests.</li><li>End-to-end tests.</li><li>Docker configuration.</li><li>Production deployment.</li><li>GitHub documentation and screenshots.</li></ol></div>
+</div>
+</section>
+
+<section id="scan-phases">
+<h2>16. 6-Phase Scan Engine</h2>
+<p>Every scan runs six sequential audit phases via Playwright and reports findings in real-time through Server-Sent Events (SSE). Each violation is categorized by phase so results can be grouped and prioritized.</p>
+
+<h3>Phase 1 — Data Quality &amp; Measurement</h3>
+<p class="muted">Category: <code>data-quality</code></p>
+<table>
+<tr><th>Check</th><th>What it detects</th></tr>
+<tr><td>GTM / GA4 presence</td><td>Missing Google Tag Manager or GA4 tracking scripts</td></tr>
+<tr><td>Duplicate tracking scripts</td><td>Analytics scripts loaded more than once (causes double-counted events)</td></tr>
+<tr><td>dataLayer object</td><td>Missing <code>window.dataLayer</code> required for GTM event tracking</td></tr>
+<tr><td>UTM consistency</td><td>Excessive <code>utm_medium</code> variants across outbound links</td></tr>
+<tr><td>Form event tracking</td><td>Forms without detectable <code>form_start</code> / <code>form_submit</code> events</td></tr>
+<tr><td>Site search tracking</td><td>Search inputs present but no <code>view_search_results</code> event</td></tr>
+</table>
+
+<h3>Phase 2 — Accessibility Audit (WCAG 2.2 AA)</h3>
+<p class="muted">Category: <code>accessibility</code> · Engine: axe-core 4.10</p>
+<table>
+<tr><th>Check</th><th>What it detects</th></tr>
+<tr><td>Color contrast</td><td>Text/background combos below 4.5:1 (AA) ratio</td></tr>
+<tr><td>Alt text</td><td>Missing or empty <code>alt</code> attributes on non-decorative images</td></tr>
+<tr><td>Form accessibility</td><td>Missing labels, error messages, and focus management</td></tr>
+<tr><td>Keyboard navigation</td><td>Tab order, visible focus indicators, skip-to-content links</td></tr>
+<tr><td>ARIA landmarks</td><td>Missing <code>&lt;main&gt;</code>, <code>&lt;nav&gt;</code>, sequential heading hierarchy</td></tr>
+<tr><td>Full WCAG 2.x rule set</td><td>wcag2a, wcag2aa, wcag21a, wcag21aa, wcag22aa, best-practice tags</td></tr>
+</table>
+
+<h3>Phase 3 — GEO (Generative Engine Optimization)</h3>
+<p class="muted">Category: <code>geo</code></p>
+<table>
+<tr><th>Check</th><th>What it detects</th></tr>
+<tr><td>JSON-LD schema</td><td>Missing or incomplete structured data (Organization, WebPage, FAQPage, BreadcrumbList)</td></tr>
+<tr><td>Content dates</td><td>No publication or modification dates in meta tags or <code>&lt;time&gt;</code> elements</td></tr>
+<tr><td>FAQ sections</td><td>No FAQ markup, <code>&lt;details&gt;</code> elements, or "frequently asked" content</td></tr>
+<tr><td>Question-format headings</td><td>Headings not written as questions (e.g. "Eligibility" vs. "Who qualifies?")</td></tr>
+<tr><td>Page summaries</td><td>No TL;DR or summary section at top of content</td></tr>
+<tr><td>Credibility links</td><td>No outbound links to authoritative sources (FDA, NIH, CMS)</td></tr>
+<tr><td>Internal linking</td><td>Fewer than 3 internal cross-links on the page</td></tr>
+<tr><td>Alt text quality</td><td>Images with non-descriptive alt text (generic names, file paths)</td></tr>
+</table>
+
+<h3>Phase 4 — UX &amp; Performance</h3>
+<p class="muted">Category: <code>ux-performance</code></p>
+<table>
+<tr><th>Check</th><th>What it detects</th></tr>
+<tr><td>Image optimization</td><td>Images not in modern formats (WebP / AVIF)</td></tr>
+<tr><td>Lazy loading</td><td>Below-fold images missing <code>loading="lazy"</code></td></tr>
+<tr><td>Responsive images</td><td>Images without <code>srcset</code> or <code>&lt;picture&gt;</code> element</td></tr>
+<tr><td>Viewport meta</td><td>Missing <code>&lt;meta name="viewport"&gt;</code> tag</td></tr>
+<tr><td>Touch targets</td><td>Interactive elements smaller than 44 &times; 44 px (WCAG 2.5.8)</td></tr>
+<tr><td>Long forms</td><td>Forms with more than 8 fields (drop-off risk)</td></tr>
+<tr><td>Skip-to-content link</td><td>No skip link as first focusable element for keyboard users</td></tr>
+</table>
+
+<h3>Phase 5 — SEO &amp; Discoverability</h3>
+<p class="muted">Category: <code>seo</code></p>
+<table>
+<tr><th>Check</th><th>What it detects</th></tr>
+<tr><td>Meta title</td><td>Missing or over-length <code>&lt;title&gt;</code> tag (&gt; 60 chars)</td></tr>
+<tr><td>Meta description</td><td>Missing or over-length meta description (&gt; 160 chars)</td></tr>
+<tr><td>Canonical URL</td><td>Missing <code>&lt;link rel="canonical"&gt;</code></td></tr>
+<tr><td>Heading hierarchy</td><td>Missing H1, multiple H1s, or skipped heading levels</td></tr>
+<tr><td>Open Graph tags</td><td>Missing <code>og:title</code> / <code>og:description</code> for social sharing</td></tr>
+<tr><td>Twitter Card</td><td>Missing <code>twitter:card</code> meta tag</td></tr>
+<tr><td>Lang attribute</td><td>Missing <code>lang</code> on <code>&lt;html&gt;</code> element</td></tr>
+<tr><td>robots.txt</td><td>Missing file or no Sitemap directive</td></tr>
+<tr><td>sitemap.xml</td><td>Missing XML sitemap</td></tr>
+</table>
+
+<h3>Phase 6 — Baseline &amp; Measurement</h3>
+<p class="muted">Category: <code>baseline</code></p>
+<table>
+<tr><th>Check</th><th>What it detects</th></tr>
+<tr><td>Site inventory</td><td>Counts unique internal pages linked from the scanned page</td></tr>
+<tr><td>Total issue summary</td><td>Aggregates issue count across all six phases</td></tr>
+<tr><td>Migration planning</td><td>Lists discovered internal paths for redirect mapping</td></tr>
+</table>
+
+<div class="callout"><strong>Real-time progress:</strong> The scan streams step-by-step progress via SSE. The frontend shows a live phase-by-phase log with animated indicators, so users see exactly what the engine is checking at each moment.</div>
+</section>
+
+<section id="objective">
+<h2>17. Final Project Objective</h2>
+<p>AccessiAI should demonstrate that its developer can independently design, develop, test, and deploy a production-oriented full-stack web application.</p>
+<div class="grid">
+<div class="tile"><strong>Frontend</strong>Modern React development, advanced frontend architecture, accessible responsive UI.</div>
+<div class="tile"><strong>Backend</strong>Python backend development, RESTful API design, GraphQL integration.</div>
+<div class="tile"><strong>Data & AI</strong>Relational database design and AI API integration.</div>
+<div class="tile"><strong>Quality</strong>Automated browser testing, WCAG implementation, security, testing, and deployment.</div>
+</div>
+<div class="callout"><strong>Primary portfolio objective:</strong> Demonstrate Senior Frontend Developer capabilities while also showcasing practical full-stack development and AI engineering skills.</div>
+</section>
+<footer>AccessiAI · Full-stack project specification · Built as a portfolio planning document</footer>
+</main>
+</div>
+</body>
+</html>
