@@ -1,5 +1,6 @@
-import { motion } from "framer-motion";
-import { FileText, Layers, XCircle } from "lucide-react";
+import { useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { ChevronDown, FileText, Layers, XCircle } from "lucide-react";
 import { clsx } from "clsx";
 import type { PageResult, Violation } from "../../types";
 
@@ -34,18 +35,45 @@ export function PageBreakdown({
     if (v.impact === "critical") counts[page].critical++;
   }
   const completed = pages.filter((p) => p.status === "completed").length;
+  const [expanded, setExpanded] = useState(true);
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-lg font-bold text-ink">
-          Pages Scanned ({pages.length})
-        </h2>
+      <button
+        type="button"
+        onClick={() => setExpanded((e) => !e)}
+        aria-expanded={expanded}
+        aria-controls="pages-scanned-list"
+        className="w-full flex items-center justify-between gap-3 mb-3 text-left"
+      >
+        <span className="flex items-center gap-2">
+          <motion.span
+            animate={{ rotate: expanded ? 0 : -90 }}
+            transition={{ type: "spring", stiffness: 300, damping: 20 }}
+            className="flex"
+          >
+            <ChevronDown className="w-5 h-5 text-brand" />
+          </motion.span>
+          <span className="text-lg font-bold text-ink">
+            Pages Scanned ({pages.length})
+          </span>
+        </span>
         <span className="text-xs text-muted">
           {completed} of {pages.length} scanned successfully
         </span>
-      </div>
+      </button>
+      <AnimatePresence initial={false}>
+        {expanded && (
+          <motion.div
+            key="pages-list"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+            className="overflow-hidden"
+          >
       <div
+        id="pages-scanned-list"
         className="space-y-2"
         role="group"
         aria-label="Filter results by page"
@@ -80,9 +108,10 @@ export function PageBreakdown({
             <motion.button
               key={page.url}
               type="button"
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: i * 0.03 }}
+              initial={{ opacity: 0, x: -16, scale: 0.98 }}
+              animate={{ opacity: 1, x: 0, scale: 1 }}
+              whileHover={{ x: 4 }}
+              transition={{ delay: Math.min(i, 12) * 0.03, type: "spring", stiffness: 260, damping: 24 }}
               onClick={() => onSelectPage(page.url)}
               aria-pressed={isSelected}
               className={clsx(
@@ -134,6 +163,9 @@ export function PageBreakdown({
           );
         })}
       </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
