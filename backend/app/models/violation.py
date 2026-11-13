@@ -16,8 +16,6 @@ class Violation(UUIDBase):
     description: Mapped[str] = mapped_column(Text, nullable=False)
     impact: Mapped[str] = mapped_column(String(20), nullable=False)
     wcag_criteria: Mapped[str] = mapped_column(String(200), nullable=False)
-    wcag_version: Mapped[str] = mapped_column(String(10), default="2.2", nullable=False)
-    wcag_level: Mapped[str] = mapped_column(String(3), default="AA", nullable=False)
     status: Mapped[str] = mapped_column(String(20), default="open", nullable=False)
     help_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
     page_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)

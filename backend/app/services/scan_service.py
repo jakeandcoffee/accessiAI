@@ -15,12 +15,6 @@ from app.models.affected_element import AffectedElement
 from app.models.scan import Scan
 from app.models.violation import Violation
 from app.services.scan_progress import emit
-from app.standards import (
-    DEFAULT_WCAG_STANDARDS,
-    WCAG_22_REFERENCE,
-    PRIMARY_WCAG_VERSION,
-    PRIMARY_WCAG_LEVEL,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -36,9 +30,6 @@ BLOCKED_NETWORKS = [
 ]
 
 AXE_CORE_CDN = "https://cdnjs.cloudflare.com/ajax/libs/axe-core/4.10.2/axe.min.js"
-# WCAG 2.2 Compliance Standard
-# Reference: https://www.w3.org/TR/WCAG22/
-WCAG_STANDARDS_URL = WCAG_22_REFERENCE
 
 
 def validate_url(url: str) -> str:
@@ -171,9 +162,6 @@ async def _audit_page(page, scan_id: str, check_site_files: bool) -> dict:
     emit(scan_id, f"Phase 1 complete", f"{len(phase1_results)} issues found", phase="Phase 1: Data Quality")
 
     # ── Phase 2: Accessibility Audit (WCAG 2.2 AA and Section 508) ──
-    # Reference: https://www.w3.org/TR/WCAG22/
-    # This phase enforces Web Content Accessibility Guidelines 2.2 Level AA compliance
-    # using axe-core accessibility engine (https://www.deque.com/axe/core/)
     emit(scan_id, "Phase 2: Accessibility Audit", "Injecting axe-core engine", phase="Phase 2: Accessibility")
 
     await page.evaluate("""async () => {
@@ -186,22 +174,16 @@ async def _audit_page(page, scan_id: str, check_site_files: bool) -> dict:
         });
     }""" % AXE_CORE_CDN)
 
-    emit(
-        scan_id,
-        "Running WCAG 2.2 AA and Section 508 audit",
-        "Analyzing applicable accessibility rules per https://www.w3.org/TR/WCAG22/",
-        phase="Phase 2: Accessibility",
-    )
+    emit(scan_id, "Running WCAG 2.2 AA and Section 508 audit", "Analyzing applicable accessibility rules", phase="Phase 2: Accessibility")
 
-    # Enforce WCAG 2.2 AA compliance by running axe-core with all applicable standards
-    axe_results = await page.evaluate(f"""async () => {{
-        return await axe.run(document, {{
-            runOnly: {{
+    axe_results = await page.evaluate("""async () => {
+        return await axe.run(document, {
+            runOnly: {
                 type: 'tag',
-                values: {DEFAULT_WCAG_STANDARDS}
-            }}
-        }});
-    }}""")
+                values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa', 'section508', 'best-practice']
+            }
+        });
+    }""")
 
     axe_violations = axe_results.get("violations", [])
     axe_passes = len(axe_results.get("passes", []))
@@ -689,39 +671,13 @@ def _page_score(passes: int, axe_violation_count: int) -> float:
 async def _save_page_violations(db, scan: Scan, page_url: str, audit: dict) -> int:
     saved = 0
 
-    # Save axe-core violations (Phase 2) with WCAG 2.2 standards enforcement
-    # Reference: https://www.w3.org/TR/WCAG22/
+    # Save axe-core violations (Phase 2) with elements
     for v_data in audit["axe_violations"]:
         standards_tags = [
             t for t in v_data.get("tags", [])
             if t.startswith("wcag") or t.startswith("section508")
         ]
         wcag_criteria = ", ".join(standards_tags) if standards_tags else "best-practice"
-        
-        # Extract WCAG version and level from standards tags
-        wcag_version = "2.2"
-        wcag_level = "AA"
-        for tag in standards_tags:
-            if "wcag22" in tag:
-                wcag_version = "2.2"
-                if "aaa" in tag:
-                    wcag_level = "AAA"
-                else:
-                    wcag_level = "AA"
-                break
-            elif "wcag21" in tag:
-                wcag_version = "2.1"
-                if "aa" in tag:
-                    wcag_level = "AA"
-                else:
-                    wcag_level = "A"
-                break
-            elif "wcag2a" in tag:
-                wcag_version = "2.0"
-                wcag_level = "A"
-            elif "wcag2aa" in tag:
-                wcag_version = "2.0"
-                wcag_level = "AA"
 
         violation = Violation(
             scan_id=scan.id,
@@ -731,8 +687,6 @@ async def _save_page_violations(db, scan: Scan, page_url: str, audit: dict) -> i
             description=v_data.get("description", ""),
             impact=v_data.get("impact", "minor"),
             wcag_criteria=wcag_criteria,
-            wcag_version=wcag_version,
-            wcag_level=wcag_level,
             help_url=v_data.get("helpUrl"),
         )
         db.add(violation)
