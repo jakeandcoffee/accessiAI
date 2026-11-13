@@ -428,6 +428,21 @@ backend/
 
 **Target:** WCAG 2.2 Level AA, with automated Section 508-tagged checks. The AccessiAI application itself must demonstrate accessibility best practices.
 
+### 7.0 WCAG 2.2 Standard Reference
+
+**Official Standard:** https://www.w3.org/TR/WCAG22/
+
+AccessiAI enforces **WCAG 2.2 Level AA** compliance on every accessibility scan conducted through the platform. WCAG 2.2 is the current W3C Recommendation (published December 12, 2024) and represents the latest evolution of web accessibility standards.
+
+**Every scan automatically checks against:**
+- WCAG 2.2 Level AA (primary target)
+- WCAG 2.1 Level AA
+- WCAG 2.0 Level AA
+- Section 508 (US Federal compliance)
+- Industry best practices
+
+See [`docs/WCAG22_COMPLIANCE.md`](docs/WCAG22_COMPLIANCE.md) for detailed WCAG 2.2 implementation and standards references.
+
 ### 7.1 Semantic HTML
 
 Use appropriate elements such as `header`, `nav`, `main`, `section`, `article`, `footer`, `button`, `form`, and `label`. Avoid using generic div elements for everything.
