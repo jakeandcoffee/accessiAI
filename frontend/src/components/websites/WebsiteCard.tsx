@@ -1,7 +1,6 @@
 import { motion } from "framer-motion";
 import { Globe, Trash2, ExternalLink } from "lucide-react";
 import { Link } from "react-router-dom";
-import { Button } from "../common/Button";
 import { ScanButton } from "./ScanButton";
 import type { Website } from "../../types";
 
@@ -78,9 +77,12 @@ export function WebsiteCard({ website, onDelete, index }: WebsiteCardProps) {
 
       <div className="flex gap-2 mt-4 pt-4 border-t border-white/[0.06]">
         <ScanButton websiteId={website.id} className="flex-1" />
-        <Button variant="secondary" size="sm" className="flex-1" asChild>
-          <Link to={`/websites/${website.id}`}>Details</Link>
-        </Button>
+        <Link
+          to={`/websites/${website.id}`}
+          className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg font-semibold transition-colors px-3 py-1.5 text-sm bg-white/[0.06] text-ink border border-white/10 hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/50"
+        >
+          Details
+        </Link>
       </div>
     </motion.div>
   );
