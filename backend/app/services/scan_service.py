@@ -1,6 +1,7 @@
 import asyncio
 import html
 import ipaddress
+import json
 import logging
 import re
 import socket
@@ -194,11 +195,12 @@ async def _audit_page(page, scan_id: str, check_site_files: bool) -> dict:
     )
 
     # Enforce WCAG 2.2 AA compliance by running axe-core with all applicable standards
+    wcag_standards_json = json.dumps(DEFAULT_WCAG_STANDARDS)
     axe_results = await page.evaluate(f"""async () => {{
         return await axe.run(document, {{
             runOnly: {{
                 type: 'tag',
-                values: {DEFAULT_WCAG_STANDARDS}
+                values: {wcag_standards_json}
             }}
         }});
     }}""")
