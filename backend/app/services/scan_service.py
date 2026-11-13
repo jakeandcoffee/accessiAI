@@ -1,6 +1,7 @@
 import asyncio
 import html
 import ipaddress
+import json
 import logging
 import re
 import socket
@@ -15,6 +16,7 @@ from app.models.affected_element import AffectedElement
 from app.models.scan import Scan
 from app.models.violation import Violation
 from app.services.scan_progress import emit
+from app.standards import WCAG_22_REFERENCE, WCAG_STANDARDS
 
 logger = logging.getLogger(__name__)
 
@@ -174,16 +176,22 @@ async def _audit_page(page, scan_id: str, check_site_files: bool) -> dict:
         });
     }""" % AXE_CORE_CDN)
 
-    emit(scan_id, "Running WCAG 2.2 AA and Section 508 audit", "Analyzing applicable accessibility rules", phase="Phase 2: Accessibility")
+    emit(
+        scan_id,
+        "Running WCAG 2.2 AA and Section 508 audit",
+        f"Analyzing rules per {WCAG_22_REFERENCE}",
+        phase="Phase 2: Accessibility",
+    )
 
-    axe_results = await page.evaluate("""async () => {
-        return await axe.run(document, {
-            runOnly: {
+    wcag_standards_json = json.dumps(WCAG_STANDARDS)
+    axe_results = await page.evaluate(f"""async () => {{
+        return await axe.run(document, {{
+            runOnly: {{
                 type: 'tag',
-                values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa', 'section508', 'best-practice']
-            }
-        });
-    }""")
+                values: {wcag_standards_json}
+            }}
+        }});
+    }}""")
 
     axe_violations = axe_results.get("violations", [])
     axe_passes = len(axe_results.get("passes", []))
