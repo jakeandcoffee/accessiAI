@@ -124,6 +124,62 @@ The frontend will be available at http://localhost:5173.
 | `ENVIRONMENT`       | `development` or `production`        | `development`               |
 | `VITE_API_URL`      | Backend URL used by the frontend     | `http://localhost:8000`     |
 
+## Sharing for External Testing
+
+You can share the app with testers via a public URL tunnel — no deployment needed. The app runs on your machine and the tunnel forwards traffic.
+
+### Option 1: Cloudflare Tunnel (Recommended)
+
+No account required. Fast and reliable.
+
+```bash
+# Install cloudflared
+brew install cloudflared
+
+# Build the frontend for production (served from the backend on one port)
+docker compose exec -e VITE_API_URL= frontend npm run build
+
+# Copy the build into the backend container
+docker cp frontend/dist/. $(docker compose ps -q backend):/app/frontend_dist/
+
+# Start the tunnel
+cloudflared tunnel --url http://localhost:8000
+```
+
+Cloudflare prints a public URL like `https://random-words.trycloudflare.com` — send that to your tester. They can register an account and use the full app.
+
+To stop: `pkill cloudflared`
+
+### Option 2: ngrok
+
+Requires a free account at [ngrok.com](https://dashboard.ngrok.com/signup).
+
+```bash
+# Install ngrok
+brew install ngrok
+
+# Authenticate (one-time — get your token from https://dashboard.ngrok.com/get-started/your-authtoken)
+ngrok config add-authtoken YOUR_TOKEN
+
+# Build and copy frontend (same as above)
+docker compose exec -e VITE_API_URL= frontend npm run build
+docker cp frontend/dist/. $(docker compose ps -q backend):/app/frontend_dist/
+
+# Start the tunnel
+ngrok http 8000
+```
+
+ngrok prints a public URL like `https://xxxx.ngrok-free.app` — send that to your tester.
+
+To stop: `Ctrl+C` or `pkill ngrok`
+
+### Notes
+
+- Your machine must stay on and Docker running while testers use the link
+- The tunnel URL changes each time you restart it (free tier)
+- Testers register their own account on the login page
+- Scans run on your local machine so performance depends on your connection
+
 ## Project Structure
 
 ```

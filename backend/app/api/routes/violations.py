@@ -94,8 +94,16 @@ async def request_ai_analysis(
     if not violation:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Violation not found")
 
+    scan = await db.get(Scan, violation.scan_id)
+    guidelines = None
+    if scan:
+        website = await db.get(Website, scan.website_id)
+        if website and website.attachments:
+            from app.services.scan_service import _extract_attachment_text
+            guidelines = _extract_attachment_text(str(website.id), website.attachments)
+
     from app.services.ai_service import analyze_violation
-    await analyze_violation(violation, db)
+    await analyze_violation(violation, db, guidelines=guidelines or None)
 
     await db.refresh(violation, attribute_names=["ai_analyses"])
     return ViolationResponse.model_validate(violation)

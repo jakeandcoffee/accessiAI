@@ -6,11 +6,20 @@ export interface User {
   created_at: string;
 }
 
+export interface Attachment {
+  id: string;
+  filename: string;
+  size: number;
+  content_type: string;
+  uploaded_at: string;
+}
+
 export interface Website {
   id: string;
   name: string;
   url: string;
   page_urls: string[];
+  attachments: Attachment[];
   created_at: string;
   latest_score: number | null;
   last_scanned: string | null;

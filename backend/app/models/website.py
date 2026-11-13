@@ -14,6 +14,7 @@ class Website(UUIDBase):
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     url: Mapped[str] = mapped_column(String(2048), nullable=False)
     page_urls: Mapped[list[str]] = mapped_column(JSON, default=list, server_default="[]", nullable=False)
+    attachments: Mapped[list[dict]] = mapped_column(JSON, default=list, server_default="[]", nullable=False)
 
     owner = relationship("User", back_populates="websites")
     scans = relationship("Scan", back_populates="website", cascade="all, delete-orphan", order_by="Scan.scan_started_at.desc()")

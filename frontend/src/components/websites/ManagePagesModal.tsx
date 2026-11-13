@@ -4,6 +4,7 @@ import { Button } from "../common/Button";
 import { useUpdateWebsite } from "../../hooks/useWebsites";
 import type { Website } from "../../types";
 import { parsePageUrls, validatePageUrls } from "./pageUrls";
+import { Attachments } from "./Attachments";
 
 interface ManagePagesModalProps {
   website: Website;
@@ -13,7 +14,7 @@ interface ManagePagesModalProps {
 
 export function ManagePagesModal({ website, isOpen, onClose }: ManagePagesModalProps) {
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Pages to Scan">
+    <Modal isOpen={isOpen} onClose={onClose} title="Scan Configuration">
       {/* Remount on open so the form starts from the saved pages */}
       <PagesForm key={String(isOpen)} website={website} onClose={onClose} />
     </Modal>
@@ -42,7 +43,7 @@ function PagesForm({ website, onClose }: Omit<ManagePagesModalProps, "isOpen">) 
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-5">
       <p className="text-sm text-muted">
         The main URL <span className="text-ink">{website.url}</span> is always scanned. Add any
         other pages below — each one is scanned and reported separately.
@@ -55,7 +56,7 @@ function PagesForm({ website, onClose }: Omit<ManagePagesModalProps, "isOpen">) 
           id="manage_page_urls"
           value={value}
           onChange={(e) => setValue(e.target.value)}
-          rows={8}
+          rows={6}
           aria-describedby="manage_page_urls_hint"
           className="w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-ink font-mono placeholder:text-muted/50 focus:outline-none focus:ring-2 focus:ring-brand/50 focus:border-brand/50"
           placeholder={"https://example.com/about\nhttps://example.com/contact"}
@@ -67,12 +68,20 @@ function PagesForm({ website, onClose }: Omit<ManagePagesModalProps, "isOpen">) 
           <p className="text-red-400 text-xs mt-1" role="alert">{error}</p>
         )}
       </div>
+
+      <div className="border-t border-white/[0.06] pt-4">
+        <Attachments
+          websiteId={website.id}
+          attachments={website.attachments ?? []}
+        />
+      </div>
+
       <div className="flex gap-3 pt-2">
         <Button type="button" variant="secondary" onClick={onClose} className="flex-1">
           Cancel
         </Button>
         <Button type="submit" isLoading={isPending} className="flex-1">
-          Save Pages
+          Save
         </Button>
       </div>
     </form>

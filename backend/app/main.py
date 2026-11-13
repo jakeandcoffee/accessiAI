@@ -1,7 +1,12 @@
+import os
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from sqlalchemy import text
 from strawberry.fastapi import GraphQLRouter
 
@@ -25,6 +30,7 @@ async def lifespan(app: FastAPI):
             "ALTER TABLE scans ADD COLUMN IF NOT EXISTS page_results JSON",
             "ALTER TABLE scans ADD COLUMN IF NOT EXISTS scan_mode VARCHAR(20) NOT NULL DEFAULT 'entered'",
             "ALTER TABLE violations ADD COLUMN IF NOT EXISTS page_url VARCHAR(2048)",
+            "ALTER TABLE websites ADD COLUMN IF NOT EXISTS attachments JSON NOT NULL DEFAULT '[]'",
         ):
             await conn.execute(text(stmt))
     yield
@@ -38,9 +44,10 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+app.add_middleware(GZipMiddleware, minimum_size=500)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.FRONTEND_URL, "http://localhost:5173", "http://localhost:3000"],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -89,3 +96,16 @@ app.include_router(graphql_router, prefix="/graphql")
 @app.get("/health")
 async def health():
     return {"status": "healthy"}
+
+
+# Serve built frontend (production mode for sharing via tunnel)
+FRONTEND_DIST = Path("/app/frontend_dist")
+if FRONTEND_DIST.is_dir():
+    app.mount("/assets", StaticFiles(directory=FRONTEND_DIST / "assets"), name="frontend-assets")
+
+    @app.get("/{full_path:path}")
+    async def serve_spa(full_path: str):
+        file_path = FRONTEND_DIST / full_path
+        if full_path and file_path.is_file():
+            return FileResponse(file_path)
+        return FileResponse(FRONTEND_DIST / "index.html")

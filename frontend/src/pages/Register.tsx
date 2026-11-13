@@ -4,8 +4,9 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { motion } from "framer-motion";
-import { Accessibility, Mail, Lock, User, Eye, EyeOff } from "lucide-react";
+import { Mail, Lock, User, Eye, EyeOff } from "lucide-react";
 import { Button } from "../components/common/Button";
+import { PandaMascot } from "../components/common/PandaMascot";
 import { useAuth } from "../hooks/useAuth";
 
 const schema = z
@@ -84,9 +85,9 @@ export function Register() {
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               transition={{ type: "spring", delay: 0.2 }}
-              className="w-14 h-14 rounded-xl bg-brand/20 border border-brand/30 flex items-center justify-center mb-4"
+              className="mb-4"
             >
-              <Accessibility className="w-8 h-8 text-brand" />
+              <PandaMascot size={72} />
             </motion.div>
             <h1 className="text-2xl font-bold text-ink">Create Account</h1>
             <p className="text-sm text-muted mt-1">Get started with AccessiAI</p>

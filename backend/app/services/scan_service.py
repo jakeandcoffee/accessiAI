@@ -3,6 +3,7 @@ import html
 import ipaddress
 import json
 import logging
+import os
 import re
 import socket
 from collections import deque
@@ -14,9 +15,12 @@ from app.core.config import settings
 from app.database.connection import async_session
 from app.models.affected_element import AffectedElement
 from app.models.scan import Scan
+from app.models.website import Website
 from app.models.violation import Violation
 from app.services.scan_progress import emit
 from app.standards import WCAG_22_REFERENCE, WCAG_STANDARDS
+
+UPLOAD_DIR = "/app/uploads"
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +55,98 @@ def validate_url(url: str) -> str:
             if ip in network:
                 raise ValueError(f"Access to {hostname} is blocked (private/reserved IP)")
     return url
+
+
+GUIDELINES_AUDIT_PROMPT = """You are an accessibility auditor. You are given a page structure summary and a set of client-specific accessibility guidelines from an uploaded document.
+
+Compare the page against the guidelines and identify any violations or gaps. Return ONLY a JSON array of violations. Each violation must have these fields:
+- "rule_id": a short kebab-case ID starting with "guideline/" (e.g. "guideline/missing-skip-nav")
+- "description": one-sentence description of the issue
+- "impact": one of "critical", "serious", "moderate", "minor"
+- "detail": specific explanation referencing the relevant guideline
+
+If the page fully complies with the guidelines, return an empty array: []
+Return ONLY the JSON array, no other text."""
+
+
+async def _audit_page_guidelines(page, scan_id: str, page_url: str, guidelines: str) -> list[dict]:
+    """Use AI to check the page against custom guidelines from attachments."""
+    if not settings.ANTHROPIC_API_KEY:
+        return []
+
+    emit(scan_id, "Guidelines audit", f"Checking {page_url} against uploaded standards", phase="Guidelines Audit")
+
+    try:
+        page_summary = await page.evaluate("""() => {
+            const title = document.title || '';
+            const lang = document.documentElement.lang || '';
+            const headings = Array.from(document.querySelectorAll('h1,h2,h3,h4,h5,h6'))
+                .slice(0, 30).map(h => h.tagName + ': ' + h.textContent.trim().substring(0, 80));
+            const images = Array.from(document.querySelectorAll('img'))
+                .slice(0, 20).map(i => ({ alt: i.alt || '', hasAlt: i.hasAttribute('alt') }));
+            const forms = Array.from(document.querySelectorAll('form')).map(f => ({
+                inputs: Array.from(f.querySelectorAll('input,select,textarea')).slice(0, 15).map(i => ({
+                    type: i.type, name: i.name || '',
+                    hasLabel: !!(i.labels && i.labels.length) || !!i.getAttribute('aria-label') || !!i.getAttribute('aria-labelledby')
+                }))
+            }));
+            const landmarks = Array.from(document.querySelectorAll('[role], header, main, footer, nav, aside, section'))
+                .slice(0, 30).map(l => {
+                    const role = l.getAttribute('role');
+                    const label = l.getAttribute('aria-label') || '';
+                    return l.tagName + (role ? '[role=' + role + ']' : '') + (label ? '(' + label + ')' : '');
+                });
+            const skipLink = !!document.querySelector('a[href^="#main"], a[href^="#content"], a.skip-link, a.skip-to-content');
+            const focusOutline = (() => {
+                const btn = document.querySelector('a, button');
+                if (!btn) return 'unknown';
+                const s = getComputedStyle(btn, ':focus');
+                return s.outlineStyle !== 'none' ? 'present' : 'none';
+            })();
+            const colorContrast = document.querySelectorAll('[style*="color"]').length;
+            const ariaLive = document.querySelectorAll('[aria-live]').length;
+            const tabindex = Array.from(document.querySelectorAll('[tabindex]'))
+                .map(e => ({ tag: e.tagName, tabindex: e.getAttribute('tabindex') })).slice(0, 10);
+
+            return JSON.stringify({
+                title, lang, headings, images, forms, landmarks, skipLink,
+                focusOutline, colorContrastInlineStyles: colorContrast,
+                ariaLiveRegions: ariaLive, tabindex,
+                linkCount: document.querySelectorAll('a').length,
+                buttonCount: document.querySelectorAll('button').length
+            });
+        }""")
+
+        import anthropic
+        client = anthropic.AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
+
+        guidelines_trimmed = guidelines[:6000]
+        response = await client.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=2000,
+            system=GUIDELINES_AUDIT_PROMPT,
+            messages=[{"role": "user", "content": f"## Client Guidelines\n{guidelines_trimmed}\n\n## Page Structure ({page_url})\n{page_summary}"}],
+        )
+
+        import json as json_mod
+        text = response.content[0].text.strip()
+        if text.startswith("```"):
+            text = text.split("\n", 1)[1].rsplit("```", 1)[0].strip()
+        violations = json_mod.loads(text)
+
+        if not isinstance(violations, list):
+            return []
+
+        for v in violations:
+            emit(scan_id, f"Found: {v.get('rule_id', 'guideline/unknown')}", v.get("description", ""), phase="Guidelines Audit")
+
+        emit(scan_id, "Guidelines audit complete", f"{len(violations)} guideline issue(s) found", phase="Guidelines Audit")
+        return [{"category": "guideline", **v} for v in violations]
+
+    except Exception as e:
+        logger.warning("Guidelines audit failed for %s: %s", page_url, e)
+        emit(scan_id, "Guidelines audit skipped", str(e), phase="Guidelines Audit")
+        return []
 
 
 async def _audit_page(page, scan_id: str, check_site_files: bool) -> dict:
@@ -199,7 +295,155 @@ async def _audit_page(page, scan_id: str, check_site_files: bool) -> dict:
     for v in axe_violations:
         emit(scan_id, f"Found: {v.get('id')}", v.get('description', ''), phase="Phase 2: Accessibility")
 
-    emit(scan_id, f"Phase 2 complete", f"{len(axe_violations)} violations, {axe_passes} rules passed", phase="Phase 2: Accessibility")
+    # Additional accessibility checks axe-core may undercount
+    extra_a11y = await page.evaluate("""() => {
+        const findings = [];
+
+        // Empty links (no text, no aria-label, no img with alt)
+        document.querySelectorAll('a[href]').forEach(a => {
+            const text = (a.textContent || '').trim();
+            const aria = a.getAttribute('aria-label') || a.getAttribute('aria-labelledby') || '';
+            const imgAlt = a.querySelector('img[alt]');
+            if (!text && !aria && !imgAlt) {
+                findings.push({
+                    rule_id: 'a11y/empty-link',
+                    description: 'Link has no accessible text — screen readers cannot describe it',
+                    impact: 'critical',
+                    detail: 'Selector: ' + (a.id ? '#'+a.id : a.className ? '.'+a.className.split(' ')[0] : 'a[href="'+a.getAttribute('href')+'"]')
+                });
+            }
+        });
+
+        // Empty buttons
+        document.querySelectorAll('button').forEach(btn => {
+            const text = (btn.textContent || '').trim();
+            const aria = btn.getAttribute('aria-label') || btn.getAttribute('aria-labelledby') || '';
+            if (!text && !aria) {
+                findings.push({
+                    rule_id: 'a11y/empty-button',
+                    description: 'Button has no accessible text — screen readers cannot describe it',
+                    impact: 'critical',
+                    detail: 'Selector: ' + (btn.id ? '#'+btn.id : btn.className ? '.'+btn.className.split(' ')[0] : 'button')
+                });
+            }
+        });
+
+        // Form inputs missing labels
+        document.querySelectorAll('input:not([type="hidden"]):not([type="submit"]):not([type="button"]), select, textarea').forEach(input => {
+            const hasLabel = (input.labels && input.labels.length > 0) ||
+                             input.getAttribute('aria-label') ||
+                             input.getAttribute('aria-labelledby') ||
+                             input.getAttribute('title');
+            if (!hasLabel) {
+                findings.push({
+                    rule_id: 'a11y/missing-form-label',
+                    description: 'Form input has no associated label, aria-label, or title',
+                    impact: 'critical',
+                    detail: 'Input type="' + (input.type||'text') + '" name="' + (input.name||'') + '"'
+                });
+            }
+        });
+
+        // Duplicate IDs
+        const ids = {};
+        document.querySelectorAll('[id]').forEach(el => {
+            const id = el.id;
+            if (id) ids[id] = (ids[id] || 0) + 1;
+        });
+        Object.entries(ids).forEach(([id, count]) => {
+            if (count > 1) {
+                findings.push({
+                    rule_id: 'a11y/duplicate-id',
+                    description: 'Duplicate id="' + id + '" found ' + count + ' times — breaks ARIA references and label associations',
+                    impact: 'serious',
+                    detail: 'id="' + id + '" appears ' + count + ' times'
+                });
+            }
+        });
+
+        // Focus indicator check — sample interactive elements
+        const interactives = Array.from(document.querySelectorAll('a, button, input, select, textarea, [tabindex]')).slice(0, 30);
+        let noOutline = 0;
+        interactives.forEach(el => {
+            const style = getComputedStyle(el);
+            const focusStyle = getComputedStyle(el, ':focus');
+            if (style.outlineStyle === 'none' && style.outlineWidth === '0px' &&
+                !style.boxShadow.includes('rgb')) {
+                noOutline++;
+            }
+        });
+        if (noOutline > 5) {
+            findings.push({
+                rule_id: 'a11y/missing-focus-indicator',
+                description: noOutline + ' interactive elements have outline:none with no visible focus alternative',
+                impact: 'serious',
+                detail: 'WCAG 2.4.7 requires visible focus indicators for keyboard users'
+            });
+        }
+
+        // Missing landmarks
+        const hasMain = !!document.querySelector('main, [role="main"]');
+        const hasNav = !!document.querySelector('nav, [role="navigation"]');
+        const hasBanner = !!document.querySelector('header, [role="banner"]');
+        if (!hasMain) {
+            findings.push({
+                rule_id: 'a11y/missing-landmark-main',
+                description: 'No <main> or role="main" landmark — screen readers cannot identify primary content',
+                impact: 'serious',
+                detail: 'WCAG 1.3.1 requires page structure to be programmatically determinable'
+            });
+        }
+        if (!hasNav) {
+            findings.push({
+                rule_id: 'a11y/missing-landmark-nav',
+                description: 'No <nav> or role="navigation" landmark found',
+                impact: 'moderate',
+                detail: 'Navigation landmarks help screen reader users orient within the page'
+            });
+        }
+
+        // Color contrast on inline styles (supplementary — axe checks computed styles)
+        let lowContrastInline = 0;
+        document.querySelectorAll('[style*="color"]').forEach(el => {
+            const style = el.getAttribute('style') || '';
+            if (style.includes('color:') && (style.includes('#fff') || style.includes('#FFF') ||
+                style.includes('white') || style.includes('rgba(255'))) {
+                const bg = getComputedStyle(el).backgroundColor;
+                if (bg.includes('255, 255, 255') || bg.includes('#fff') || bg === 'transparent') {
+                    lowContrastInline++;
+                }
+            }
+        });
+        if (lowContrastInline > 0) {
+            findings.push({
+                rule_id: 'a11y/inline-low-contrast',
+                description: lowContrastInline + ' element(s) with inline styles may have insufficient color contrast',
+                impact: 'serious',
+                detail: 'WCAG 1.4.3 requires minimum 4.5:1 contrast ratio for normal text'
+            });
+        }
+
+        // Tabindex > 0 (disrupts natural tab order)
+        const badTabindex = document.querySelectorAll('[tabindex]:not([tabindex="0"]):not([tabindex="-1"])');
+        if (badTabindex.length > 0) {
+            findings.push({
+                rule_id: 'a11y/positive-tabindex',
+                description: badTabindex.length + ' element(s) use positive tabindex — disrupts natural keyboard tab order',
+                impact: 'serious',
+                detail: 'Use tabindex="0" to add to natural order, tabindex="-1" for programmatic focus only'
+            });
+        }
+
+        return findings;
+    }""")
+
+    for f in extra_a11y:
+        emit(scan_id, f"Found: {f['rule_id']}", f['description'], phase="Phase 2: Accessibility")
+
+    all_violations.extend([{**f, "category": "accessibility"} for f in extra_a11y])
+
+    total_a11y = len(axe_violations) + len(extra_a11y)
+    emit(scan_id, f"Phase 2 complete", f"{total_a11y} violations ({sum(len(v.get('nodes',[])) for v in axe_violations)} affected elements), {axe_passes} rules passed", phase="Phase 2: Accessibility")
 
     # ── Phase 3: GEO Audit (Generative Engine Optimization) ──
     emit(scan_id, "Phase 3: GEO Audit", "Checking AI/search engine readability", phase="Phase 3: GEO")
@@ -671,9 +915,32 @@ async def _audit_page(page, scan_id: str, check_site_files: bool) -> dict:
     }
 
 
-def _page_score(passes: int, axe_violation_count: int) -> float:
-    total_checks = passes + axe_violation_count
-    return round(passes / total_checks * 100, 1) if total_checks > 0 else 100.0
+IMPACT_WEIGHT = {"critical": 5, "serious": 3, "moderate": 2, "minor": 1}
+
+
+def _page_score(axe_violations: list[dict], axe_passes: int, other_violations: list[dict]) -> float:
+    """Score based on weighted violation instances, not just rule count.
+
+    axe-core reports one entry per *rule* that fails, but each entry has a
+    ``nodes`` list with every affected element.  Counting rules makes a page
+    with 200 contrast failures look like it only has 1 problem.  We count
+    every instance and weight by impact so critical issues pull the score
+    down harder.
+    """
+    weighted_penalty = 0
+    for v in axe_violations:
+        instances = max(len(v.get("nodes", [])), 1)
+        weight = IMPACT_WEIGHT.get(v.get("impact", "minor"), 1)
+        weighted_penalty += instances * weight
+
+    for v in other_violations:
+        weight = IMPACT_WEIGHT.get(v.get("impact", "minor"), 1)
+        weighted_penalty += weight
+
+    total_checks = axe_passes + weighted_penalty
+    if total_checks == 0:
+        return 100.0
+    return round(max(0, axe_passes / total_checks * 100), 1)
 
 
 async def _save_page_violations(db, scan: Scan, page_url: str, audit: dict) -> int:
@@ -816,6 +1083,34 @@ async def _sitemap_links(context, origin: str, allowed_hosts: set[str]) -> list[
     return found
 
 
+def _extract_attachment_text(website_id: str, attachments: list[dict]) -> str:
+    """Read text from uploaded attachment files (PDFs and text files)."""
+    texts: list[str] = []
+    for att in attachments:
+        file_path = os.path.join(UPLOAD_DIR, website_id, att.get("stored_name", ""))
+        if not os.path.isfile(file_path):
+            continue
+        content_type = att.get("content_type", "")
+        filename = att.get("filename", "")
+        try:
+            if content_type == "application/pdf" or filename.lower().endswith(".pdf"):
+                from pypdf import PdfReader
+                reader = PdfReader(file_path)
+                pdf_text = "\n".join(
+                    page.extract_text() or "" for page in reader.pages
+                )
+                if pdf_text.strip():
+                    texts.append(f"--- {filename} ---\n{pdf_text.strip()}")
+            elif content_type.startswith("text/") or filename.lower().endswith((".txt", ".csv")):
+                with open(file_path, "r", errors="ignore") as f:
+                    file_text = f.read()
+                if file_text.strip():
+                    texts.append(f"--- {filename} ---\n{file_text.strip()}")
+        except Exception as e:
+            logger.warning("Could not extract text from %s: %s", filename, e)
+    return "\n\n".join(texts)
+
+
 async def run_scan(scan_id: str, urls: list[str] | str, discover: bool = False) -> None:
     """Scan every URL in ``urls``. With ``discover``, also crawl same-site links and sitemap.xml."""
     if isinstance(urls, str):
@@ -830,6 +1125,22 @@ async def run_scan(scan_id: str, urls: list[str] | str, discover: bool = False) 
 
         scan.status = "running"
         await db.commit()
+
+        website = await db.get(Website, scan.website_id)
+        guidelines_text = ""
+        if website and website.attachments:
+            emit(scan_id, "Loading guidelines", f"Reading {len(website.attachments)} attachment(s)", phase="Guidelines")
+            guidelines_text = await asyncio.to_thread(
+                _extract_attachment_text, str(website.id), website.attachments
+            )
+            if guidelines_text:
+                preview = guidelines_text[:200] + ("..." if len(guidelines_text) > 200 else "")
+                emit(scan_id, "Guidelines loaded",
+                     f"Extracted guidelines from {len(website.attachments)} file(s) — will apply during scan",
+                     phase="Guidelines")
+                logger.info("Scan %s: loaded %d chars of guidelines from attachments", scan_id, len(guidelines_text))
+            else:
+                emit(scan_id, "No text extracted", "Attachments present but no readable text found", phase="Guidelines")
 
         max_pages = max(settings.SCAN_ALL_MAX_PAGES, len(urls)) if discover else len(urls)
         allowed_hosts = {_site_id(u) for u in urls}
@@ -864,8 +1175,9 @@ async def run_scan(scan_id: str, urls: list[str] | str, discover: bool = False) 
             emit(scan_id, "Launching browser", "Starting Chromium headless", phase="Setup")
 
             total_passes = 0
-            total_axe = 0
             total_saved = 0
+            all_axe_violations: list[dict] = []
+            all_other_violations: list[dict] = []
             checked_origins: set[str] = set()
 
             async with async_playwright() as p:
@@ -916,6 +1228,10 @@ async def run_scan(scan_id: str, urls: list[str] | str, discover: bool = False) 
                         origin = f"{urlparse(url).scheme}://{urlparse(url).netloc}"
                         audit = await _audit_page(page, scan_id, check_site_files=origin not in checked_origins)
                         checked_origins.add(origin)
+
+                        if guidelines_text:
+                            guideline_violations = await _audit_page_guidelines(page, scan_id, url, guidelines_text)
+                            audit["other_violations"].extend(guideline_violations)
                     except Exception as e:
                         logger.warning("Scan %s: page %s failed: %s", scan_id, url, e)
                         # Playwright appends a multi-line call log; the first line is the useful part
@@ -931,16 +1247,18 @@ async def run_scan(scan_id: str, urls: list[str] | str, discover: bool = False) 
                     saved = await _save_page_violations(db, scan, url, audit)
                     total_saved += saved
                     total_passes += audit["passes"]
-                    total_axe += len(audit["axe_violations"])
+                    all_axe_violations.extend(audit["axe_violations"])
+                    all_other_violations.extend(audit["other_violations"])
+                    page_score = _page_score(audit["axe_violations"], audit["passes"], audit["other_violations"])
                     result = {
                         "url": url,
                         "status": "completed",
-                        "score": _page_score(audit["passes"], len(audit["axe_violations"])),
+                        "score": page_score,
                         "total_violations": saved,
                         "error": None,
                     }
                     page_results.append(result)
-                    page_event(f"Page {index} complete", f"{url} — score {result['score']:.0f}, {saved} issues",
+                    page_event(f"Page {index} complete", f"{url} — score {page_score:.0f}, {saved} issues",
                                index, result, status="page_completed")
 
                 await browser.close()
@@ -951,7 +1269,7 @@ async def run_scan(scan_id: str, urls: list[str] | str, discover: bool = False) 
 
             emit(scan_id, "Saving results", "Writing violations to database", phase="Saving")
 
-            score = _page_score(total_passes, total_axe)
+            score = _page_score(all_axe_violations, total_passes, all_other_violations)
             scan.accessibility_score = score
             scan.total_violations = total_saved
             scan.page_results = page_results

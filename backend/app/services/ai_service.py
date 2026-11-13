@@ -22,12 +22,20 @@ SYSTEM_PROMPT = """You are an expert web accessibility consultant. Given an acce
 Be concise but thorough. Format your response with clear markdown headings."""
 
 
-async def analyze_violation(violation: Violation, db: AsyncSession) -> AIAnalysis:
+async def analyze_violation(violation: Violation, db: AsyncSession, guidelines: str | None = None) -> AIAnalysis:
     elements_html = ""
     for el in violation.affected_elements:
         elements_html += f"- Selector: `{el.selector}`\n  HTML: `{el.html}`\n"
         if el.failure_summary:
             elements_html += f"  Failure: {el.failure_summary}\n"
+
+    guidelines_section = ""
+    if guidelines:
+        guidelines_section = f"""
+
+**Client Guidelines** (from uploaded attachments — apply these standards in your analysis):
+{guidelines[:4000]}
+"""
 
     user_message = f"""Analyze this accessibility violation:
 
@@ -39,7 +47,7 @@ async def analyze_violation(violation: Violation, db: AsyncSession) -> AIAnalysi
 
 **Affected Elements**:
 {elements_html or 'No elements captured'}
-"""
+{guidelines_section}"""
 
     if not settings.ANTHROPIC_API_KEY:
         analysis = AIAnalysis(

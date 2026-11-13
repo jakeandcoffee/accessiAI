@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { type LucideIcon } from "lucide-react";
 import { Button } from "./Button";
+import { PandaMascot } from "./PandaMascot";
 
 interface EmptyStateProps {
   icon: LucideIcon;
@@ -21,9 +22,9 @@ export function EmptyState({ icon: Icon, title, description, actionLabel, onActi
         initial={{ scale: 0 }}
         animate={{ scale: 1 }}
         transition={{ type: "spring", stiffness: 200, delay: 0.1 }}
-        className="w-20 h-20 rounded-2xl bg-brand/10 border border-brand/20 flex items-center justify-center mb-6"
+        className="mb-6"
       >
-        <Icon className="w-10 h-10 text-brand" />
+        <PandaMascot size={100} />
       </motion.div>
       <h3 className="text-lg font-bold text-ink mb-2">{title}</h3>
       <p className="text-muted text-sm max-w-sm mb-6">{description}</p>

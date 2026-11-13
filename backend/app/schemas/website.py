@@ -18,11 +18,20 @@ class WebsiteUpdate(BaseModel):
     page_urls: list[HttpUrl] | None = Field(default=None, max_length=MAX_PAGES_PER_WEBSITE)
 
 
+class AttachmentResponse(BaseModel):
+    id: str
+    filename: str
+    size: int
+    content_type: str
+    uploaded_at: str
+
+
 class WebsiteResponse(BaseModel):
     id: UUID
     name: str
     url: str
     page_urls: list[str] = []
+    attachments: list[AttachmentResponse] = []
     created_at: datetime
     latest_score: float | None = None
     last_scanned: datetime | None = None

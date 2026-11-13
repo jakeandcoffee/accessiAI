@@ -1,12 +1,13 @@
 import { motion } from "framer-motion";
 import { Loader2 } from "lucide-react";
 import { clsx } from "clsx";
-import { forwardRef, type ButtonHTMLAttributes } from "react";
+import { forwardRef, type ReactNode, type ButtonHTMLAttributes } from "react";
 
-interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+interface ButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, "onAnimationStart" | "onDragStart" | "onDragEnd" | "onDrag"> {
   variant?: "primary" | "secondary" | "danger" | "ghost";
   size?: "sm" | "md" | "lg";
   isLoading?: boolean;
+  children?: ReactNode;
 }
 
 const variants = {

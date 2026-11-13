@@ -35,3 +35,6 @@ htmlcov/
 
 # Playwright
 backend/app/scanner/axe.min.js
+
+# Client account files (confidential)
+clients/
