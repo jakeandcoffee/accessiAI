@@ -4,6 +4,14 @@ from uuid import UUID
 from pydantic import BaseModel
 
 
+class PageResultResponse(BaseModel):
+    url: str
+    status: str
+    score: float | None = None
+    total_violations: int = 0
+    error: str | None = None
+
+
 class ScanResponse(BaseModel):
     id: UUID
     website_id: UUID
@@ -12,6 +20,8 @@ class ScanResponse(BaseModel):
     total_violations: int
     scan_started_at: datetime
     scan_completed_at: datetime | None
+    scan_mode: str = "entered"
+    page_results: list[PageResultResponse] | None = None
     website_name: str | None = None
     website_url: str | None = None
 
@@ -47,6 +57,7 @@ class ViolationResponse(BaseModel):
     wcag_criteria: str
     status: str
     help_url: str | None
+    page_url: str | None = None
     created_at: datetime
     affected_elements: list[AffectedElementResponse] = []
     ai_analyses: list[AIAnalysisResponse] = []

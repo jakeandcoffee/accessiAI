@@ -18,6 +18,7 @@ class Violation(UUIDBase):
     wcag_criteria: Mapped[str] = mapped_column(String(200), nullable=False)
     status: Mapped[str] = mapped_column(String(20), default="open", nullable=False)
     help_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
+    page_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
 
     scan = relationship("Scan", back_populates="violations")
     affected_elements = relationship("AffectedElement", back_populates="violation", cascade="all, delete-orphan")

@@ -77,7 +77,7 @@ export function WebsiteCard({ website, onDelete, index }: WebsiteCardProps) {
       </div>
 
       <div className="flex gap-2 mt-4 pt-4 border-t border-white/[0.06]">
-        <ScanButton websiteId={website.id} />
+        <ScanButton websiteId={website.id} className="flex-1" />
         <Button variant="secondary" size="sm" className="flex-1" asChild>
           <Link to={`/websites/${website.id}`}>Details</Link>
         </Button>

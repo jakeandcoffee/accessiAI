@@ -14,7 +14,7 @@ MODEL_NAME = "claude-sonnet-4-20250514"
 SYSTEM_PROMPT = """You are an expert web accessibility consultant. Given an accessibility violation detected by axe-core, provide a structured analysis with:
 
 1. **Explanation**: A clear, developer-friendly explanation of what the violation means and why it matters.
-2. **WCAG Criteria**: Explain the specific WCAG success criteria that this violation relates to.
+2. **Applicable Standards**: Explain the WCAG success criteria and/or Section 508 provisions indicated by the supplied tags. Do not claim full compliance or legal conformance.
 3. **Suggested Fix**: Provide a concrete HTML or React code fix that resolves the issue.
 4. **User Impact**: Describe how this issue affects users with disabilities.
 5. **Testing Recommendations**: Suggest how to verify the fix works.
@@ -34,7 +34,7 @@ async def analyze_violation(violation: Violation, db: AsyncSession) -> AIAnalysi
 **Rule ID**: {violation.rule_id}
 **Description**: {violation.description}
 **Impact**: {violation.impact}
-**WCAG Criteria**: {violation.wcag_criteria}
+**WCAG / Section 508 Tags**: {violation.wcag_criteria}
 **Help URL**: {violation.help_url or 'N/A'}
 
 **Affected Elements**:
@@ -44,7 +44,7 @@ async def analyze_violation(violation: Violation, db: AsyncSession) -> AIAnalysi
     if not settings.ANTHROPIC_API_KEY:
         analysis = AIAnalysis(
             violation_id=violation.id,
-            explanation=f"**{violation.rule_id}**: {violation.description}\n\nThis is a {violation.impact}-level accessibility issue related to WCAG criteria: {violation.wcag_criteria}.",
+            explanation=f"**{violation.rule_id}**: {violation.description}\n\nThis is a {violation.impact}-level accessibility issue related to these standards tags: {violation.wcag_criteria}.",
             suggested_fix="AI analysis requires an Anthropic API key. Please configure ANTHROPIC_API_KEY to enable AI-powered suggestions.",
             model_name="fallback",
         )

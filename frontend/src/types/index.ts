@@ -10,10 +10,21 @@ export interface Website {
   id: string;
   name: string;
   url: string;
+  page_urls: string[];
   created_at: string;
   latest_score: number | null;
   last_scanned: string | null;
 }
+
+export interface PageResult {
+  url: string;
+  status: "completed" | "failed";
+  score: number | null;
+  total_violations: number;
+  error: string | null;
+}
+
+export type ScanMode = "entered" | "all";
 
 export interface Scan {
   id: string;
@@ -25,6 +36,8 @@ export interface Scan {
   total_violations: number;
   scan_started_at: string;
   scan_completed_at: string | null;
+  scan_mode?: ScanMode;
+  page_results?: PageResult[] | null;
 }
 
 export interface AffectedElement {
@@ -54,6 +67,7 @@ export interface Violation {
   wcag_criteria: string;
   status: "open" | "in_progress" | "resolved" | "ignored";
   help_url: string | null;
+  page_url?: string | null;
   created_at: string;
   affected_elements: AffectedElement[];
   ai_analyses: AIAnalysis[];

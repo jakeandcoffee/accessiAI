@@ -57,7 +57,7 @@ PHASE_CONFIG = {
     },
     "accessibility": {
         "order": 2,
-        "label": "Phase 2 — Accessibility (WCAG 2.2 AA)",
+        "label": "Phase 2 — Accessibility (WCAG 2.2 AA + Section 508)",
         "color": colors.Color(0.95, 0.28, 0.28),
         "bg": colors.Color(0.95, 0.28, 0.28, 0.12),
     },
@@ -98,6 +98,52 @@ def _score_color(score: float) -> colors.Color:
     if score >= 50:
         return colors.Color(0.95, 0.80, 0.15)
     return colors.Color(0.95, 0.28, 0.28)
+
+
+def group_violations_by_page(
+    scan: Scan,
+    violations: Sequence[Violation],
+) -> list[tuple[str, dict | None, list[Violation]]]:
+    """Return (page_url, page_result, violations) per scanned page, in scan order."""
+    default_url = scan.website.url if scan.website else "N/A"
+    by_page: dict[str, list[Violation]] = defaultdict(list)
+    for v in violations:
+        by_page[v.page_url or default_url].append(v)
+
+    groups: list[tuple[str, dict | None, list[Violation]]] = []
+    seen: set[str] = set()
+    for result in scan.page_results or []:
+        url = result.get("url")
+        if url and url not in seen:
+            seen.add(url)
+            groups.append((url, result, by_page.get(url, [])))
+    for url, page_violations in by_page.items():
+        if url not in seen:
+            seen.add(url)
+            groups.append((url, None, page_violations))
+    if not groups:
+        groups.append((default_url, None, []))
+    return groups
+
+
+def _page_score_markup(page_result: dict | None) -> str:
+    if not page_result:
+        return '<font color="#8b8fa5">—</font>'
+    if page_result.get("status") == "failed":
+        return f'<font color="#{IMPACT_COLORS["critical"].hexval()[2:]}"><b>FAILED</b></font>'
+    score = page_result.get("score")
+    if score is None:
+        return '<font color="#8b8fa5">—</font>'
+    return f'<font color="#{_score_color(score).hexval()[2:]}"><b>{score:.0f}</b></font><font color="#8b8fa5"> / 100</font>'
+
+
+def _page_score_text(page_result: dict | None) -> str:
+    if not page_result:
+        return "N/A"
+    if page_result.get("status") == "failed":
+        return "Failed"
+    score = page_result.get("score")
+    return f"{round(score)}/100" if score is not None else "N/A"
 
 
 def _on_page(canvas, doc):
@@ -212,13 +258,20 @@ def generate_pdf_report(
         spaceAfter=16,
     ))
 
+    page_groups = group_violations_by_page(scan, violations)
+
     # ── Summary Cards Row ──
     score = scan.accessibility_score if scan.accessibility_score is not None else 0
     sc = _score_color(score)
 
     summary_data = [[
         Paragraph(f'<font color="#8b8fa5">Website</font><br/><font size="11"><b>{_esc(scan.website.name)}</b></font>', s_body),
-        Paragraph(f'<font color="#8b8fa5">URL</font><br/><font size="9">{_esc(scan.website.url)}</font>', s_body),
+        Paragraph(
+            f'<font color="#8b8fa5">Pages Scanned</font><br/><font size="14"><b>{len(page_groups)}</b></font>'
+            if len(page_groups) > 1
+            else f'<font color="#8b8fa5">URL</font><br/><font size="9">{_esc(page_groups[0][0])}</font>',
+            s_body,
+        ),
         Paragraph(f'<font color="#8b8fa5">Violations</font><br/><font size="14"><b>{scan.total_violations}</b></font>', s_body),
         Paragraph(f'<font color="#8b8fa5">Overall Score</font><br/><font size="18" color="#{sc.hexval()[2:]}"><b>{score:.0f}</b></font><font size="9" color="#8b8fa5"> / 100</font>', s_body),
     ]]
@@ -321,91 +374,161 @@ def generate_pdf_report(
         elements.append(phase_table)
         elements.append(Spacer(1, 10))
 
-    # ── Violations by Phase ──
+    # ── Pages Scanned ──
+    if len(page_groups) > 1 or scan.page_results:
+        elements.append(Paragraph(f"Pages Scanned ({len(page_groups)})", s_heading))
+        pages_rows = [[
+            Paragraph('<font color="#8b8fa5"><b>Page</b></font>', s_body),
+            Paragraph('<font color="#8b8fa5"><b>Score</b></font>', s_body),
+            Paragraph('<font color="#8b8fa5"><b>Issues</b></font>', s_body),
+            Paragraph('<font color="#8b8fa5"><b>Critical</b></font>', s_body),
+        ]]
+        for page_num, (page_url, page_result, page_violations) in enumerate(page_groups, 1):
+            crit = sum(1 for v in page_violations if v.impact == "critical")
+            pages_rows.append([
+                Paragraph(f'<b>{page_num}.</b> {_esc(page_url)}', s_body),
+                Paragraph(_page_score_markup(page_result), s_body),
+                Paragraph(f'<b>{len(page_violations)}</b>', s_body),
+                Paragraph(f'<font color="{IMPACT_COLORS["critical"].hexval()}">{crit}</font>' if crit else '<font color="#8b8fa5">0</font>', s_body),
+            ])
+        pages_table = Table(pages_rows, colWidths=[page_w * 0.58, page_w * 0.16, page_w * 0.13, page_w * 0.13])
+        pages_style = [
+            ("BACKGROUND", (0, 0), (-1, -1), BG_CARD),
+            ("BOX", (0, 0), (-1, -1), 0.5, BORDER_COLOR),
+            ("LINEBELOW", (0, 0), (-1, 0), 0.5, BORDER_COLOR),
+            ("PADDING", (0, 0), (-1, -1), 8),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("ROUNDEDCORNERS", [6, 6, 6, 6]),
+        ]
+        for r in range(2, len(pages_rows), 2):
+            pages_style.append(("BACKGROUND", (0, r), (-1, r), BG_ROW_ALT))
+        pages_table.setStyle(TableStyle(pages_style))
+        elements.append(pages_table)
+        elements.append(Spacer(1, 10))
+
+    # ── Findings by Page, then by Phase ──
     elements.append(Paragraph("Detailed Findings", s_heading))
 
-    for cat in active_phases:
-        cfg = PHASE_CONFIG.get(cat, {"label": cat, "color": TEXT_MUTED, "bg": BG_CARD})
-        cat_violations = grouped[cat]
-        hex_c = cfg["color"].hexval()[2:]
+    for page_num, (page_url, page_result, page_violations) in enumerate(page_groups, 1):
+        page_banner = Table([[
+            Paragraph(
+                f'<font color="#9d9dff"><b>Page {page_num} of {len(page_groups)}</b></font><br/>'
+                f'<font size="10"><b>{_esc(page_url)}</b></font>',
+                s_body,
+            ),
+            Paragraph(
+                f'{_page_score_markup(page_result)}<br/><font color="#8b8fa5">{len(page_violations)} issues</font>',
+                ParagraphStyle("PageBannerRight", parent=s_body, alignment=TA_RIGHT),
+            ),
+        ]], colWidths=[page_w * 0.75, page_w * 0.25])
+        page_banner.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, -1), BG_CARD),
+            ("BOX", (0, 0), (-1, -1), 1, BRAND),
+            ("PADDING", (0, 0), (-1, -1), 10),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("ROUNDEDCORNERS", [6, 6, 6, 6]),
+        ]))
+        elements.append(Spacer(1, 14))
+        elements.append(page_banner)
 
-        elements.append(HRFlowable(
-            width="100%", thickness=1.5,
-            color=cfg["color"],
-            spaceBefore=14, spaceAfter=4,
-        ))
-        phase_title = ParagraphStyle(
-            f"Phase_{cat}", parent=s_phase_heading,
-            textColor=cfg["color"],
-        )
-        elements.append(Paragraph(
-            f'{_esc(cfg["label"])} <font size="9" color="#8b8fa5">({len(cat_violations)} issues)</font>',
-            phase_title,
-        ))
+        if page_result and page_result.get("status") == "failed":
+            elements.append(Paragraph(
+                f'<font color="#{IMPACT_COLORS["critical"].hexval()[2:]}">Page could not be scanned: {_esc(page_result.get("error") or "unknown error")}</font>',
+                s_body,
+            ))
+            continue
+        if not page_violations:
+            elements.append(Paragraph('<font color="#8b8fa5">No issues found on this page.</font>', s_body))
+            continue
 
-        for i, v in enumerate(cat_violations, 1):
-            ic = IMPACT_COLORS.get(v.impact, TEXT_MUTED)
-            ic_hex = ic.hexval()[2:]
+        page_grouped: dict[str, list[Violation]] = defaultdict(list)
+        for v in page_violations:
+            page_grouped[v.category or "accessibility"].append(v)
+        page_phases = [p for p in PHASE_ORDER if page_grouped.get(p)] + sorted(c for c in page_grouped if c not in PHASE_ORDER)
 
-            violation_data = [[
-                Paragraph(
-                    f'<font size="9"><b>{i}.</b></font> '
-                    f'<font size="9"><b>{_esc(v.rule_id)}</b></font>',
-                    s_body,
-                ),
-                Paragraph(
-                    f'<font size="8" color="#{ic_hex}"><b> {v.impact.upper()} </b></font>',
-                    ParagraphStyle("ImpactBadge", parent=s_body, alignment=TA_RIGHT),
-                ),
-            ]]
-            vt = Table(violation_data, colWidths=[page_w * 0.75, page_w * 0.25])
-            vt.setStyle(TableStyle([
-                ("BACKGROUND", (0, 0), (-1, -1), BG_CARD),
-                ("BOX", (0, 0), (-1, -1), 0.5, BORDER_COLOR),
-                ("PADDING", (0, 0), (-1, -1), 8),
-                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-                ("TOPPADDING", (0, 0), (-1, -1), 6),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
-                ("ROUNDEDCORNERS", [4, 4, 0, 0]),
-            ]))
-            elements.append(vt)
+        for cat in page_phases:
+            cfg = PHASE_CONFIG.get(cat, {"label": cat, "color": TEXT_MUTED, "bg": BG_CARD})
+            cat_violations = page_grouped[cat]
+            hex_c = cfg["color"].hexval()[2:]
 
-            detail_parts = [
-                f'<font color="#e2e8f0">{_esc(v.description)}</font>',
-            ]
-            if v.wcag_criteria:
-                detail_parts.append(f'<br/><font color="#8b8fa5"><b>WCAG:</b> {_esc(v.wcag_criteria)}</font>')
-            if v.help_url:
-                detail_parts.append(f'<br/><font color="#7878cc"><u>{_esc(v.help_url)}</u></font>')
+            elements.append(HRFlowable(
+                width="100%", thickness=1.5,
+                color=cfg["color"],
+                spaceBefore=14, spaceAfter=4,
+            ))
+            phase_title = ParagraphStyle(
+                f"Phase_{cat}", parent=s_phase_heading,
+                textColor=cfg["color"],
+            )
+            elements.append(Paragraph(
+                f'{_esc(cfg["label"])} <font size="9" color="#8b8fa5">({len(cat_violations)} issues)</font>',
+                phase_title,
+            ))
 
-            detail_data = [[Paragraph("".join(detail_parts), s_body)]]
-            dt = Table(detail_data, colWidths=[page_w])
-            dt.setStyle(TableStyle([
-                ("BACKGROUND", (0, 0), (-1, -1), BG_ROW_ALT),
-                ("BOX", (0, 0), (-1, -1), 0.5, BORDER_COLOR),
-                ("PADDING", (0, 0), (-1, -1), 10),
-                ("TOPPADDING", (0, 0), (-1, -1), 6),
-                ("ROUNDEDCORNERS", [0, 0, 4, 4]),
-            ]))
-            elements.append(dt)
+            for i, v in enumerate(cat_violations, 1):
+                ic = IMPACT_COLORS.get(v.impact, TEXT_MUTED)
+                ic_hex = ic.hexval()[2:]
 
-            if v.affected_elements:
-                for el in v.affected_elements[:3]:
+                violation_data = [[
+                    Paragraph(
+                        f'<font size="9"><b>{i}.</b></font> '
+                        f'<font size="9"><b>{_esc(v.rule_id)}</b></font>',
+                        s_body,
+                    ),
+                    Paragraph(
+                        f'<font size="8" color="#{ic_hex}"><b> {v.impact.upper()} </b></font>',
+                        ParagraphStyle("ImpactBadge", parent=s_body, alignment=TA_RIGHT),
+                    ),
+                ]]
+                vt = Table(violation_data, colWidths=[page_w * 0.75, page_w * 0.25])
+                vt.setStyle(TableStyle([
+                    ("BACKGROUND", (0, 0), (-1, -1), BG_CARD),
+                    ("BOX", (0, 0), (-1, -1), 0.5, BORDER_COLOR),
+                    ("PADDING", (0, 0), (-1, -1), 8),
+                    ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                    ("TOPPADDING", (0, 0), (-1, -1), 6),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+                    ("ROUNDEDCORNERS", [4, 4, 0, 0]),
+                ]))
+                elements.append(vt)
+
+                detail_parts = [
+                    f'<font color="#e2e8f0">{_esc(v.description)}</font>',
+                ]
+                if v.wcag_criteria:
+                    detail_parts.append(f'<br/><font color="#8b8fa5"><b>Standards:</b> {_esc(v.wcag_criteria)}</font>')
+                if v.help_url:
+                    detail_parts.append(f'<br/><font color="#7878cc"><u>{_esc(v.help_url)}</u></font>')
+
+                detail_data = [[Paragraph("".join(detail_parts), s_body)]]
+                dt = Table(detail_data, colWidths=[page_w])
+                dt.setStyle(TableStyle([
+                    ("BACKGROUND", (0, 0), (-1, -1), BG_ROW_ALT),
+                    ("BOX", (0, 0), (-1, -1), 0.5, BORDER_COLOR),
+                    ("PADDING", (0, 0), (-1, -1), 10),
+                    ("TOPPADDING", (0, 0), (-1, -1), 6),
+                    ("ROUNDEDCORNERS", [0, 0, 4, 4]),
+                ]))
+                elements.append(dt)
+
+                if v.affected_elements:
+                    for el in v.affected_elements[:3]:
+                        elements.append(Paragraph(
+                            f'<font color="#8b8fa5">Selector:</font> <font color="#9d9dff">{_esc(el.selector)}</font>',
+                            s_code,
+                        ))
+                        elements.append(Paragraph(_esc(el.html), s_code))
+
+                if v.ai_analyses:
+                    latest = v.ai_analyses[-1]
+                    elements.append(Spacer(1, 3))
                     elements.append(Paragraph(
-                        f'<font color="#8b8fa5">Selector:</font> <font color="#9d9dff">{_esc(el.selector)}</font>',
-                        s_code,
+                        f'<font color="#9d9dff"><b>AI Suggestion:</b></font> {_esc(latest.suggested_fix[:500])}',
+                        ParagraphStyle("AISuggestion", parent=s_body, fontSize=8, leftIndent=12, textColor=TEXT_MUTED),
                     ))
-                    elements.append(Paragraph(_esc(el.html), s_code))
 
-            if v.ai_analyses:
-                latest = v.ai_analyses[-1]
-                elements.append(Spacer(1, 3))
-                elements.append(Paragraph(
-                    f'<font color="#9d9dff"><b>AI Suggestion:</b></font> {_esc(latest.suggested_fix[:500])}',
-                    ParagraphStyle("AISuggestion", parent=s_body, fontSize=8, leftIndent=12, textColor=TEXT_MUTED),
-                ))
+                elements.append(Spacer(1, 8))
 
-            elements.append(Spacer(1, 8))
 
     # ── Security Scan Results ──
     if security_results and security_results.get("status") == "completed":
@@ -565,7 +688,7 @@ def generate_pdf_report(
         spaceAfter=10,
     ))
     elements.append(Paragraph(
-        "Generated by AccessiAI. Automated scans detect many issues but cannot establish complete WCAG compliance or security. "
+        "Generated by AccessiAI. Automated scans detect many issues but cannot establish full WCAG or Section 508 conformance or guarantee security. "
         "Manual testing, expert review, and professional penetration testing are recommended.",
         s_disclaimer,
     ))
@@ -606,17 +729,38 @@ def generate_markdown_report(
             lines.append(f"| {sev.capitalize()} | {count} |")
     lines.append("")
 
-    lines.append("## Violations")
+    page_groups = group_violations_by_page(scan, violations)
+
+    lines.append(f"## Pages Scanned ({len(page_groups)})")
     lines.append("")
-    if not violations:
-        lines.append("No violations found.")
-    else:
-        for i, v in enumerate(violations, 1):
-            lines.append(f"### {i}. {v.description}")
+    lines.append("| # | Page | Score | Issues | Critical |")
+    lines.append("|---|------|-------|--------|----------|")
+    for page_num, (page_url, page_result, page_violations) in enumerate(page_groups, 1):
+        crit = sum(1 for v in page_violations if v.impact == "critical")
+        lines.append(f"| {page_num} | {page_url} | {_page_score_text(page_result)} | {len(page_violations)} | {crit} |")
+    lines.append("")
+
+    lines.append("## Violations by Page")
+    lines.append("")
+    for page_num, (page_url, page_result, page_violations) in enumerate(page_groups, 1):
+        lines.append(f"### Page {page_num}: {page_url}")
+        lines.append("")
+        lines.append(f"**Score:** {_page_score_text(page_result)} | **Issues:** {len(page_violations)}")
+        lines.append("")
+        if page_result and page_result.get("status") == "failed":
+            lines.append(f"Page could not be scanned: {page_result.get('error') or 'unknown error'}")
+            lines.append("")
+            continue
+        if not page_violations:
+            lines.append("No violations found.")
+            lines.append("")
+            continue
+        for i, v in enumerate(page_violations, 1):
+            lines.append(f"#### {page_num}.{i} {v.description}")
             lines.append("")
             lines.append(f"- **Rule:** `{v.rule_id}`")
             lines.append(f"- **Impact:** {v.impact}")
-            lines.append(f"- **WCAG:** {v.wcag_criteria}")
+            lines.append(f"- **Standards:** {v.wcag_criteria}")
             lines.append(f"- **Status:** {v.status}")
             if v.help_url:
                 lines.append(f"- **Reference:** {v.help_url}")

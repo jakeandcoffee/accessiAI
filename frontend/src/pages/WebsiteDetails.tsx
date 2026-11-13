@@ -1,6 +1,7 @@
+import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, ExternalLink, Calendar, Radar } from "lucide-react";
+import { ArrowLeft, ExternalLink, Calendar, Radar, FileText, Pencil } from "lucide-react";
 import { useWebsite } from "../hooks/useWebsites";
 import { useScans } from "../hooks/useScans";
 import { Card } from "../components/common/Card";
@@ -8,11 +9,14 @@ import { Badge } from "../components/common/Badge";
 import { ScanButton } from "../components/websites/ScanButton";
 import { ScoreGauge } from "../components/dashboard/ScoreGauge";
 import { CardSkeleton } from "../components/common/Skeleton";
+import { Button } from "../components/common/Button";
+import { ManagePagesModal } from "../components/websites/ManagePagesModal";
 
 export function WebsiteDetails() {
   const { id } = useParams<{ id: string }>();
   const { data: website, isLoading: loadingWebsite } = useWebsite(id!);
   const { data: scans, isLoading: loadingScans } = useScans(id!);
+  const [isPagesOpen, setIsPagesOpen] = useState(false);
 
   if (loadingWebsite) {
     return (
@@ -26,6 +30,8 @@ export function WebsiteDetails() {
   if (!website) {
     return <p className="text-muted text-center py-12">Website not found</p>;
   }
+
+  const pageList = Array.from(new Set([website.url, ...(website.page_urls ?? [])]));
 
   return (
     <div className="space-y-6">
@@ -52,6 +58,28 @@ export function WebsiteDetails() {
           <ScanButton websiteId={website.id} />
         </div>
       </motion.div>
+
+      <Card hoverable={false}>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-sm font-semibold text-muted flex items-center gap-1.5">
+            <FileText className="w-4 h-4" /> Pages Scanned ({pageList.length})
+          </h2>
+          <Button variant="secondary" size="sm" onClick={() => setIsPagesOpen(true)}>
+            <Pencil className="w-3.5 h-3.5" /> Edit Pages
+          </Button>
+        </div>
+        <ul className="space-y-1">
+          {pageList.map((url) => (
+            <li key={url} className="text-sm font-mono text-ink truncate">{url}</li>
+          ))}
+        </ul>
+      </Card>
+
+      <ManagePagesModal
+        website={website}
+        isOpen={isPagesOpen}
+        onClose={() => setIsPagesOpen(false)}
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card className="flex flex-col items-center justify-center py-8" hoverable={false}>

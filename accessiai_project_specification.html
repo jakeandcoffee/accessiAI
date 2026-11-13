@@ -78,7 +78,7 @@ footer{text-align:center;color:var(--muted);padding:28px;font-size:13px}
     <a href="#database">4. Database design</a>
     <a href="#frontend">5. Frontend structure</a>
     <a href="#backend">6. Backend structure</a>
-    <a href="#wcag">7. WCAG requirements</a>
+    <a href="#wcag">7. WCAG and Section 508 requirements</a>
     <a href="#security">8. Security</a>
     <a href="#testing">9. Testing strategy</a>
     <a href="#roadmap">10. Development roadmap</a>
@@ -96,15 +96,15 @@ footer{text-align:center;color:var(--muted);padding:28px;font-size:13px}
   <div class="eyebrow">Full-stack portfolio project · SaaS application</div>
   <h1>AccessiAI</h1>
   <p>AI-Powered Accessibility Audit Platform</p>
-  <p>Automatically scan websites for accessibility issues, identify WCAG violations, and use AI to explain problems and recommend code fixes.</p>
-  <div class="pills"><span class="pill">React + TypeScript</span><span class="pill">Tailwind CSS</span><span class="pill">Python + FastAPI</span><span class="pill">GraphQL</span><span class="pill">PostgreSQL</span><span class="pill">WCAG 2.2 AA</span></div>
+  <p>Automatically scan websites for accessibility issues, identify WCAG and Section 508-tagged findings, and use AI to explain problems and recommend code fixes.</p>
+  <div class="pills"><span class="pill">React + TypeScript</span><span class="pill">Tailwind CSS</span><span class="pill">Python + FastAPI</span><span class="pill">GraphQL</span><span class="pill">PostgreSQL</span><span class="pill">WCAG 2.2 AA</span><span class="pill">Section 508</span></div>
 </div>
 
 <section id="overview">
 <h2>1. Project Overview</h2>
 <h3>1.1 What is AccessiAI?</h3>
 <p>AccessiAI is an AI-powered web accessibility auditing platform that helps developers, designers, and businesses identify and fix accessibility problems on their websites.</p>
-<p>Users can enter a website URL, run an automated accessibility scan, review WCAG violations, receive AI-generated explanations, and track their remediation progress. The platform provides a centralized dashboard for managing website accessibility.</p>
+<p>Users can enter a website URL, run an automated accessibility scan, review WCAG and Section 508-tagged findings, receive AI-generated explanations, and track their remediation progress. The platform provides a centralized dashboard for managing website accessibility.</p>
 <h3>1.2 Problem Statement</h3>
 <p>Many websites contain accessibility problems that make them difficult for people with disabilities to use. Common problems include:</p>
 <ul><li>Missing image alternative text.</li><li>Insufficient color contrast.</li><li>Missing form labels.</li><li>Incorrect heading structures.</li><li>Improper ARIA attributes.</li><li>Keyboard navigation problems.</li><li>Inaccessible buttons and links.</li><li>Incorrect semantic HTML.</li></ul>
@@ -122,9 +122,9 @@ footer{text-align:center;color:var(--muted);padding:28px;font-size:13px}
 <div class="table-wrap"><table><thead><tr><th>Website</th><th>Latest score</th><th>Last scanned</th><th>Status</th></tr></thead><tbody><tr><td>example.com</td><td>92/100</td><td>Nov 10</td><td>Good</td></tr><tr><td>company.com</td><td>67/100</td><td>Nov 9</td><td>Needs improvement</td></tr><tr><td>shop.com</td><td>45/100</td><td>Nov 8</td><td>Poor</td></tr></tbody></table></div>
 <h3>2.3 Website Accessibility Scanner</h3>
 <ol><li>User enters a website URL.</li><li>Backend validates the URL and applies security restrictions.</li><li>Playwright opens the website in a controlled browser.</li><li>axe-core analyzes the rendered page.</li><li>Accessibility violations and affected elements are collected.</li><li>Results are saved in PostgreSQL.</li><li>Frontend displays the results.</li></ol>
-<p>The scanner should collect the rule ID, description, impact, WCAG success criteria, affected elements, CSS selector, HTML snippet, remediation guidance, and documentation URL.</p>
+<p>The scanner should collect the rule ID, description, impact, applicable WCAG and Section 508 tags, affected elements, CSS selector, HTML snippet, remediation guidance, and documentation URL.</p>
 <div class="table-wrap"><table><thead><tr><th>Rule</th><th>Impact</th><th>WCAG</th></tr></thead><tbody><tr><td>image-alt</td><td>Critical</td><td>1.1.1</td></tr><tr><td>color-contrast</td><td>Serious</td><td>1.4.3</td></tr><tr><td>label</td><td>Critical</td><td>3.3.2</td></tr><tr><td>button-name</td><td>Critical</td><td>4.1.2</td></tr></tbody></table></div>
-<div class="callout warn"><strong>Important:</strong> Automated scanning detects many issues but cannot establish complete WCAG compliance. Manual testing is also required.</div>
+<div class="callout warn"><strong>Important:</strong> Automated scanning detects many issues but cannot establish complete WCAG or Section 508 compliance. Manual testing is also required.</div>
 <h3>2.4 Accessibility Dashboard</h3>
 <p>Display overall accessibility score, total scans, total violations, critical/serious/moderate/minor counts, historical score trends, recently scanned websites, and recently discovered issues.</p>
 <pre>ACCESSIBILITY DASHBOARD
@@ -159,7 +159,7 @@ shop.com         40            58</pre>
 </div>
 <p>AI suggestions must be reviewed by developers. AI must not claim generated fixes guarantee compliance. Avoid sending sensitive website information to external AI services and provide a fallback when the AI service is unavailable.</p>
 <h3>2.7 Accessibility Reports</h3>
-<p>Reports should include website URL, scan date, score, WCAG version and target, total violations, severity breakdown, violation details, AI suggestions, and remediation status. Support PDF and JSON exports.</p>
+<p>Reports should include website URL, scan date, score, WCAG version and target, applicable Section 508 tags, total violations, severity breakdown, violation details, AI suggestions, and remediation status. Support PDF and JSON exports.</p>
 <h3>2.8 Scan History</h3>
 <p>Show scan date, duration, website URL, violation count, previous and current score, and comparisons between scans.</p>
 </section>
@@ -201,6 +201,7 @@ shop.com         40            58</pre>
 <p><strong>Responsibilities:</strong> render the UI, handle interactions and routing, communicate with APIs, display scan results and analytics, validate forms, and implement accessible components.</p>
 <h3>3.3 Backend Architecture</h3>
 <p><strong>Technologies:</strong> Python, FastAPI, Strawberry GraphQL, SQLAlchemy, PostgreSQL, Pydantic, and JWT.</p>
+<p><strong>Why FastAPI:</strong> It provides typed, validated REST endpoints and automatically generated API documentation. Its async support suits I/O-heavy work such as Playwright scans and asynchronous database access. FastAPI also integrates with Strawberry so the backend can offer GraphQL alongside REST.</p>
 <p><strong>Responsibilities:</strong> authentication, website and scan management, accessibility analysis, database operations, AI integration, report generation, and API authorization.</p>
 <h3>3.4 REST API and GraphQL Responsibilities</h3>
 <p>Use REST for resource operations and commands; use GraphQL for flexible dashboard queries and related data retrieval.</p>
@@ -380,8 +381,8 @@ User 1 ─── N Issue Comments</pre>
 </section>
 
 <section id="wcag">
-<h2>7. WCAG Accessibility Requirements</h2>
-<p><strong>Target:</strong> WCAG 2.2 Level AA. The AccessiAI application itself must demonstrate accessibility best practices.</p>
+<h2>7. WCAG and Section 508 Accessibility Requirements</h2>
+<p><strong>Target:</strong> WCAG 2.2 Level AA, with automated Section 508-tagged checks. The AccessiAI application itself must demonstrate accessibility best practices.</p>
 <h3>7.1 Semantic HTML</h3><p>Use appropriate elements such as <code>header</code>, <code>nav</code>, <code>main</code>, <code>section</code>, <code>article</code>, <code>footer</code>, <code>button</code>, <code>form</code>, and <code>label</code>. Avoid using generic div elements for everything.</p>
 <h3>7.2 Keyboard Navigation</h3><ul><li>Tab and Shift + Tab navigation.</li><li>Enter and Space activation where appropriate.</li><li>Escape to close dialogs.</li><li>Visible focus indicators and logical focus order.</li><li>No keyboard traps.</li></ul>
 <h3>7.3 Screen Reader Support</h3><ul><li>Meaningful accessible names.</li><li>Appropriate ARIA attributes when native HTML is insufficient.</li><li>Accessible form labels and error messages.</li><li>Announcements for dynamic content.</li><li>Proper dialog semantics.</li></ul>
@@ -389,6 +390,8 @@ User 1 ─── N Issue Comments</pre>
 <h3>7.5 Forms</h3><ul><li>Every input has an accessible label.</li><li>Required fields are identified.</li><li>Validation errors are clearly communicated and associated with inputs.</li><li>Instructions are available before submission.</li></ul>
 <h3>7.6 Responsive Design</h3><p>Support desktop, laptop, tablet, and mobile layouts, including zoom and reflow without loss of functionality.</p>
 <h3>7.7 Accessibility Testing</h3><p>Use axe-core, Playwright, Lighthouse, NVDA screen reader, and keyboard-only testing. Test the AccessiAI application itself, not just the websites it scans.</p>
+<h3>7.8 Section 508</h3><p>Run axe-core's <code>section508</code>-tagged rules alongside WCAG 2.2 A/AA checks. Section 508 applies to U.S. federal agencies and their ICT; its Revised Standards incorporate WCAG 2.0 Level A and AA for web content and include requirements that automated web scans cannot fully assess.</p>
+<p>Store and display applicable Section 508 tags with each finding. Treat automated results as a technical screening aid, not a Section 508 conformance determination. Document and perform manual testing for keyboard operation, assistive-technology workflows, documents, and other applicable requirements.</p>
 </section>
 
 <section id="security">
@@ -473,7 +476,7 @@ ALLOWED_ORIGINS=</pre>
 <h2>13. Resume Description</h2>
 <h3>AI-Powered Accessibility Audit Platform — AccessiAI</h3>
 <p><strong>Technologies:</strong> ReactJS, TypeScript, Tailwind CSS, Python, FastAPI, GraphQL, Strawberry, PostgreSQL, SQLAlchemy, OpenAI API, Playwright, axe-core.</p>
-<ul><li>Developed a full-stack accessibility auditing platform using ReactJS, Tailwind CSS, Python, and FastAPI.</li><li>Designed RESTful APIs and GraphQL endpoints for website scanning, dashboard analytics, and accessibility issue management.</li><li>Integrated Playwright and axe-core to automate website accessibility testing and identify WCAG violations.</li><li>Implemented AI-powered accessibility analysis to explain violations and generate suggested code remediation.</li><li>Developed responsive and accessible UI components following WCAG 2.2 AA guidelines.</li><li>Implemented JWT authentication, database relationships, and interactive reporting dashboards using PostgreSQL.</li></ul>
+<ul><li>Developed a full-stack accessibility auditing platform using ReactJS, Tailwind CSS, Python, and FastAPI.</li><li>Designed RESTful APIs and GraphQL endpoints for website scanning, dashboard analytics, and accessibility issue management.</li><li>Integrated Playwright and axe-core to automate WCAG testing and detect Section 508-tagged accessibility findings.</li><li>Implemented AI-powered accessibility analysis to explain violations and generate suggested code remediation.</li><li>Developed responsive and accessible UI components following WCAG 2.2 AA guidelines.</li><li>Implemented JWT authentication, database relationships, and interactive reporting dashboards using PostgreSQL.</li></ul>
 <div class="callout">Only list features that have actually been implemented and verified.</div>
 </section>
 
@@ -495,7 +498,7 @@ ALLOWED_ORIGINS=</pre>
 <li><label><input type="checkbox">Users can export PDF reports.</label></li>
 <li><label><input type="checkbox">Application supports keyboard navigation.</label></li>
 <li><label><input type="checkbox">Automated accessibility checks are passing for applicable tested criteria.</label></li>
-<li><label><input type="checkbox">Manual WCAG testing is documented.</label></li>
+<li><label><input type="checkbox">Manual WCAG and applicable Section 508 testing is documented.</label></li>
 <li><label><input type="checkbox">Application is deployed and accessible through a live URL.</label></li>
 <li><label><input type="checkbox">GitHub repository contains documentation and screenshots.</label></li>
 </ul>
@@ -504,7 +507,7 @@ ALLOWED_ORIGINS=</pre>
 <section id="priorities">
 <h2>15. Recommended Implementation Priorities</h2>
 <div class="grid">
-<div class="tile"><strong>MVP — Build First</strong><ol><li>React dashboard.</li><li>FastAPI backend.</li><li>PostgreSQL database.</li><li>JWT authentication.</li><li>Website management.</li><li>Playwright + axe-core scanner.</li><li>Violation dashboard.</li><li>WCAG 2.2 AA implementation.</li></ol></div>
+<div class="tile"><strong>MVP — Build First</strong><ol><li>React dashboard.</li><li>FastAPI backend.</li><li>PostgreSQL database.</li><li>JWT authentication.</li><li>Website management.</li><li>Playwright + axe-core scanner.</li><li>Violation dashboard.</li><li>WCAG 2.2 AA and Section 508-tagged checks.</li></ol></div>
 <div class="tile"><strong>Advanced Features — Build Second</strong><ol><li>GraphQL integration.</li><li>OpenAI-powered explanations.</li><li>AI-generated React/HTML fixes.</li><li>Scan history comparison.</li><li>PDF reports.</li><li>Advanced analytics.</li></ol></div>
 <div class="tile"><strong>Portfolio Polish — Build Last</strong><ol><li>Responsive design.</li><li>Comprehensive accessibility testing.</li><li>Unit and integration tests.</li><li>End-to-end tests.</li><li>Docker configuration.</li><li>Production deployment.</li><li>GitHub documentation and screenshots.</li></ol></div>
 </div>
@@ -526,7 +529,7 @@ ALLOWED_ORIGINS=</pre>
 <tr><td>Site search tracking</td><td>Search inputs present but no <code>view_search_results</code> event</td></tr>
 </table>
 
-<h3>Phase 2 — Accessibility Audit (WCAG 2.2 AA)</h3>
+<h3>Phase 2 — Accessibility Audit (WCAG 2.2 AA + Section 508)</h3>
 <p class="muted">Category: <code>accessibility</code> · Engine: axe-core 4.10</p>
 <table>
 <tr><th>Check</th><th>What it detects</th></tr>
@@ -535,8 +538,11 @@ ALLOWED_ORIGINS=</pre>
 <tr><td>Form accessibility</td><td>Missing labels, error messages, and focus management</td></tr>
 <tr><td>Keyboard navigation</td><td>Tab order, visible focus indicators, skip-to-content links</td></tr>
 <tr><td>ARIA landmarks</td><td>Missing <code>&lt;main&gt;</code>, <code>&lt;nav&gt;</code>, sequential heading hierarchy</td></tr>
-<tr><td>Full WCAG 2.x rule set</td><td>wcag2a, wcag2aa, wcag21a, wcag21aa, wcag22aa, best-practice tags</td></tr>
+<tr><td>WCAG 2.x rule set</td><td>wcag2a, wcag2aa, wcag21a, wcag21aa, wcag22aa tags</td></tr>
+<tr><td>Section 508 rules</td><td>axe-core <code>section508</code>-tagged checks; findings retain their applicable WCAG and Section 508 tags</td></tr>
+<tr><td>Best practices</td><td>axe-core best-practice tags</td></tr>
 </table>
+<p class="muted">Automated checks cover only machine-testable rules and do not certify WCAG or Section 508 conformance; manual and assistive-technology testing remains necessary.</p>
 
 <h3>Phase 3 — GEO (Generative Engine Optimization)</h3>
 <p class="muted">Category: <code>geo</code></p>

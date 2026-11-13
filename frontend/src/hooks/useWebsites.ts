@@ -27,7 +27,7 @@ export function useCreateWebsite() {
 export function useUpdateWebsite() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, ...data }: { id: string; name?: string; url?: string }) =>
+    mutationFn: ({ id, ...data }: { id: string; name?: string; url?: string; page_urls?: string[] }) =>
       websiteService.updateWebsite(id, data),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["websites"] }),
   });

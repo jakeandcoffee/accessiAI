@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, Float, ForeignKey, Integer, String
+from sqlalchemy import JSON, DateTime, Float, ForeignKey, Integer, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -17,6 +17,10 @@ class Scan(UUIDBase):
     total_violations: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     scan_started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     scan_completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # "entered" scans only the website's configured URLs; "all" also crawls same-site links
+    scan_mode: Mapped[str] = mapped_column(String(20), default="entered", server_default="entered", nullable=False)
+    # One entry per scanned URL: {url, status, score, total_violations, error}
+    page_results: Mapped[list[dict] | None] = mapped_column(JSON, nullable=True)
 
     website = relationship("Website", back_populates="scans")
     violations = relationship("Violation", back_populates="scan", cascade="all, delete-orphan")

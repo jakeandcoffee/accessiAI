@@ -5,10 +5,15 @@ import { Globe } from "lucide-react";
 import { Modal } from "../common/Modal";
 import { Button } from "../common/Button";
 import { useCreateWebsite } from "../../hooks/useWebsites";
+import { parsePageUrls, validatePageUrls } from "./pageUrls";
 
 const schema = z.object({
   name: z.string().min(1, "Name is required").max(100),
   url: z.string().url("Must be a valid URL starting with http:// or https://"),
+  page_urls: z.string().optional().superRefine((value, ctx) => {
+    const result = validatePageUrls(value);
+    if (result !== true) ctx.addIssue({ code: z.ZodIssueCode.custom, message: result });
+  }),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -28,7 +33,7 @@ export function AddWebsiteModal({ isOpen, onClose }: AddWebsiteModalProps) {
   } = useForm<FormData>({ resolver: zodResolver(schema) });
 
   function onSubmit(data: FormData) {
-    mutate(data, {
+    mutate({ ...data, page_urls: parsePageUrls(data.page_urls) }, {
       onSuccess: () => {
         reset();
         onClose();
@@ -68,6 +73,25 @@ export function AddWebsiteModal({ isOpen, onClose }: AddWebsiteModalProps) {
           </div>
           {errors.url && (
             <p className="text-red-400 text-xs mt-1" role="alert">{errors.url.message}</p>
+          )}
+        </div>
+        <div>
+          <label htmlFor="page_urls" className="block text-sm font-medium text-ink mb-1">
+            Additional Pages <span className="text-muted font-normal">(optional)</span>
+          </label>
+          <textarea
+            id="page_urls"
+            {...register("page_urls")}
+            rows={4}
+            aria-describedby="page_urls_hint"
+            className="w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-ink font-mono placeholder:text-muted/50 focus:outline-none focus:ring-2 focus:ring-brand/50 focus:border-brand/50"
+            placeholder={"https://example.com/about\nhttps://example.com/contact"}
+          />
+          <p id="page_urls_hint" className="text-xs text-muted mt-1">
+            One URL per line. Every page is scanned and reported separately.
+          </p>
+          {errors.page_urls && (
+            <p className="text-red-400 text-xs mt-1" role="alert">{errors.page_urls.message}</p>
           )}
         </div>
         <div className="flex gap-3 pt-2">

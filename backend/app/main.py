@@ -2,6 +2,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 from strawberry.fastapi import GraphQLRouter
 
 from app.api.routes import auth, dashboard, reports, scans, security, violations, websites
@@ -18,6 +19,14 @@ import strawberry
 async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        # create_all doesn't add columns to existing tables; backfill multi-page scan columns.
+        for stmt in (
+            "ALTER TABLE websites ADD COLUMN IF NOT EXISTS page_urls JSON NOT NULL DEFAULT '[]'",
+            "ALTER TABLE scans ADD COLUMN IF NOT EXISTS page_results JSON",
+            "ALTER TABLE scans ADD COLUMN IF NOT EXISTS scan_mode VARCHAR(20) NOT NULL DEFAULT 'entered'",
+            "ALTER TABLE violations ADD COLUMN IF NOT EXISTS page_url VARCHAR(2048)",
+        ):
+            await conn.execute(text(stmt))
     yield
     await engine.dispose()
 

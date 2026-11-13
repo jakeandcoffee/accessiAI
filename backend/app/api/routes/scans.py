@@ -1,9 +1,10 @@
 import asyncio
 import json
 from datetime import datetime, timezone
+from typing import Literal
 from uuid import UUID
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -23,6 +24,10 @@ router = APIRouter(tags=["Scans"])
 async def trigger_scan(
     website_id: UUID,
     background_tasks: BackgroundTasks,
+    mode: Literal["entered", "all"] = Query(
+        "entered",
+        description='"entered" scans only the URLs saved on the website; "all" also discovers and scans every same-site page',
+    ),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -36,13 +41,14 @@ async def trigger_scan(
     scan = Scan(
         website_id=website.id,
         status="pending",
+        scan_mode=mode,
         scan_started_at=datetime.now(timezone.utc),
     )
     db.add(scan)
     await db.flush()
 
     from app.services.scan_service import run_scan
-    background_tasks.add_task(run_scan, str(scan.id), website.url)
+    background_tasks.add_task(run_scan, str(scan.id), website.scan_urls, discover=mode == "all")
 
     from uuid import uuid4 as uuid4_gen
     from app.services.security_scan_service import run_security_scan, register_security_scan
@@ -120,6 +126,8 @@ async def list_all_scans(
             total_violations=s.total_violations,
             scan_started_at=s.scan_started_at,
             scan_completed_at=s.scan_completed_at,
+            scan_mode=s.scan_mode,
+            page_results=s.page_results,
             website_name=s.website.name if s.website else None,
             website_url=s.website.url if s.website else None,
         )

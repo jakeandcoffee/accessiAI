@@ -1,25 +1,39 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { useEffect, useState, useRef } from "react";
 import {
-  CheckCircle, Loader2, XCircle,
+  CheckCircle, Loader2, XCircle, FileText,
   Database, Accessibility, Search, LayoutDashboard, BarChart3, Target,
 } from "lucide-react";
+import type { ScanMode } from "../../types";
+
+interface PageProgress {
+  index: number;
+  url: string;
+  status: "running" | "completed" | "failed";
+  score?: number | null;
+  total_violations?: number;
+  error?: string | null;
+}
 
 interface ProgressStep {
   step: string;
   detail: string;
   status: string;
   phase: string;
+  page?: PageProgress;
+  page_total?: number;
 }
 
 interface ScanProgressProps {
   scanId: string;
   status: string;
   startedAt: string;
+  scanMode?: ScanMode;
 }
 
 const PHASE_CONFIG: Record<string, { icon: typeof Database; color: string }> = {
   "Setup": { icon: Target, color: "text-muted" },
+  "Page": { icon: FileText, color: "text-brand" },
   "Phase 1: Data Quality": { icon: Database, color: "text-orange-400" },
   "Phase 2: Accessibility": { icon: Accessibility, color: "text-red-400" },
   "Phase 3: GEO": { icon: Search, color: "text-purple-400" },
@@ -35,7 +49,81 @@ function getPhaseConfig(phase: string) {
   return PHASE_CONFIG[phase] || PHASE_CONFIG["Setup"];
 }
 
-export function ScanProgress({ scanId, status, startedAt }: ScanProgressProps) {
+function scoreColor(score: number) {
+  if (score >= 90) return "text-green-400";
+  if (score >= 75) return "text-emerald-400";
+  if (score >= 50) return "text-yellow-400";
+  return "text-red-400";
+}
+
+const AUDIT_PHASES = [
+  "Phase 1: Data Quality",
+  "Phase 2: Accessibility",
+  "Phase 3: GEO",
+  "Phase 4: UX & Performance",
+  "Phase 5: SEO",
+  "Phase 6: Baseline",
+];
+
+function PageProgressList({ pages, total, scanMode }: { pages: PageProgress[]; total: number; scanMode?: ScanMode }) {
+  const finished = pages.filter((p) => p.status !== "running").length;
+  const queued = Math.max(total - pages.length, 0);
+  return (
+    <div className="px-5 py-3 border-b border-white/[0.06]">
+      <div className="flex items-center justify-between mb-2">
+        <h4 className="text-xs font-bold uppercase tracking-wider text-muted">
+          Pages {finished}/{Math.max(total, pages.length)}
+        </h4>
+        {scanMode === "all" && (
+          <span className="text-[11px] text-muted/70">Discovering pages as it goes</span>
+        )}
+      </div>
+      <ol className="space-y-1.5 max-h-56 overflow-y-auto scrollbar-thin" aria-label="Pages in this scan">
+        {pages.map((page) => (
+          <li
+            key={page.url}
+            className={`flex items-center gap-2.5 rounded-md border px-3 py-2 ${
+              page.status === "running" ? "border-brand/40 bg-brand/[0.06]" : "border-white/[0.06]"
+            }`}
+          >
+            {page.status === "running" ? (
+              <Loader2 className="w-3.5 h-3.5 text-brand animate-spin shrink-0" aria-label="Scanning" />
+            ) : page.status === "completed" ? (
+              <CheckCircle className="w-3.5 h-3.5 text-green-400 shrink-0" aria-label="Completed" />
+            ) : (
+              <XCircle className="w-3.5 h-3.5 text-red-400 shrink-0" aria-label="Failed" />
+            )}
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-mono text-ink truncate" title={page.url}>
+                <span className="text-muted mr-1.5">{page.index}.</span>
+                {page.url}
+              </p>
+              {page.status === "failed" && (
+                <p className="text-[11px] text-red-400 truncate" title={page.error ?? undefined}>
+                  {page.error || "Could not be scanned"}
+                </p>
+              )}
+            </div>
+            {page.status === "running" && <span className="text-[11px] text-brand whitespace-nowrap">Scanning…</span>}
+            {page.status === "completed" && (
+              <>
+                <span className="text-[11px] text-muted whitespace-nowrap">{page.total_violations ?? 0} issues</span>
+                {page.score != null && (
+                  <span className={`text-sm font-bold tabular-nums w-8 text-right ${scoreColor(page.score)}`}>
+                    {Math.round(page.score)}
+                  </span>
+                )}
+              </>
+            )}
+          </li>
+        ))}
+      </ol>
+      {queued > 0 && <p className="text-[11px] text-muted/70 mt-2">{queued} more page(s) queued</p>}
+    </div>
+  );
+}
+
+export function ScanProgress({ scanId, status, startedAt, scanMode }: ScanProgressProps) {
   const [steps, setSteps] = useState<ProgressStep[]>([]);
   const [elapsed, setElapsed] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -87,7 +175,23 @@ export function ScanProgress({ scanId, status, startedAt }: ScanProgressProps) {
     }
   }
 
-  // Count issues per phase
+  // Per-page status, keyed by URL so later events overwrite the "running" entry
+  const pageMap = new Map<string, PageProgress>();
+  let pageTotal = 0;
+  let currentPageStart = -1;
+  steps.forEach((step, i) => {
+    if (step.page_total !== undefined) pageTotal = step.page_total;
+    if (step.page) {
+      pageMap.set(step.page.url, step.page);
+      if (step.page.status === "running") currentPageStart = i;
+    }
+  });
+  const pageList = [...pageMap.values()].sort((a, b) => a.index - b.index);
+  const currentPage = pageList.find((p) => p.status === "running");
+
+  // Phase badges reflect only the page currently being audited
+  const currentSteps = currentPageStart >= 0 ? steps.slice(currentPageStart) : steps;
+  const currentAuditPhases = [...new Set(currentSteps.map((s) => s.phase))].filter((p) => AUDIT_PHASES.includes(p));
   const activePhase = phases.length > 0 ? phases[phases.length - 1].phase : "";
 
   return (
@@ -115,9 +219,18 @@ export function ScanProgress({ scanId, status, startedAt }: ScanProgressProps) {
           )}
           <div>
             <h3 className="text-sm font-bold text-ink">
-              {isDone ? "Full Site Audit Complete" : "Running 6-Phase Site Audit..."}
+              {isDone
+                ? "Full Site Audit Complete"
+                : scanMode === "all"
+                  ? "Scanning All Pages..."
+                  : "Running 6-Phase Site Audit..."}
             </h3>
-            {activePhase && !isDone && (
+            {currentPage && !isDone && (
+              <p className="text-xs text-muted mt-0.5 truncate max-w-[60vw]" title={currentPage.url}>
+                Page {currentPage.index}: <span className="font-mono text-ink">{currentPage.url}</span>
+              </p>
+            )}
+            {activePhase && !isDone && AUDIT_PHASES.includes(activePhase) && (
               <p className="text-xs text-muted mt-0.5">{activePhase}</p>
             )}
           </div>
@@ -129,11 +242,10 @@ export function ScanProgress({ scanId, status, startedAt }: ScanProgressProps) {
 
       {/* Phase badges */}
       <div className="flex gap-1.5 px-5 py-3 border-b border-white/[0.06] overflow-x-auto">
-        {["Phase 1: Data Quality", "Phase 2: Accessibility", "Phase 3: GEO", "Phase 4: UX & Performance", "Phase 5: SEO", "Phase 6: Baseline"].map((p) => {
+        {AUDIT_PHASES.map((p) => {
           const config = getPhaseConfig(p);
-          const phaseSteps = phases.find(pp => pp.phase === p);
           const isActive = activePhase === p;
-          const isCompleted = phaseSteps && phases.findIndex(pp => pp.phase === p) < phases.length - 1;
+          const isCompleted = currentAuditPhases.includes(p) && !isActive;
           const Icon = config.icon;
 
           return (
@@ -162,6 +274,8 @@ export function ScanProgress({ scanId, status, startedAt }: ScanProgressProps) {
         })}
       </div>
 
+      {pageList.length > 0 && <PageProgressList pages={pageList} total={pageTotal} scanMode={scanMode} />}
+
       {/* Steps log */}
       <div ref={scrollRef} className="max-h-80 overflow-y-auto scrollbar-thin">
         <div className="px-5 py-3">
@@ -170,6 +284,43 @@ export function ScanProgress({ scanId, status, startedAt }: ScanProgressProps) {
               const config = getPhaseConfig(phaseGroup.phase);
               const PhaseIcon = config.icon;
               const isPhaseHeader = phaseGroup.phase.startsWith("Phase");
+
+              if (phaseGroup.phase === "Page") {
+                return (
+                  <div key={pi}>
+                    {phaseGroup.steps.map((step, si) => {
+                      const failed = step.status === "page_failed";
+                      const done = step.status === "page_completed";
+                      return (
+                        <motion.div
+                          key={`${pi}-${si}`}
+                          initial={{ opacity: 0, x: -10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          className={`flex items-start gap-2 rounded-md px-2.5 py-2 my-2 border ${
+                            failed
+                              ? "border-red-500/30 bg-red-500/[0.06]"
+                              : done
+                                ? "border-green-500/20 bg-green-500/[0.04]"
+                                : "border-brand/30 bg-brand/[0.06]"
+                          }`}
+                        >
+                          {failed ? (
+                            <XCircle className="w-4 h-4 text-red-400 mt-0.5 shrink-0" />
+                          ) : done ? (
+                            <CheckCircle className="w-4 h-4 text-green-400 mt-0.5 shrink-0" />
+                          ) : (
+                            <PhaseIcon className={`w-4 h-4 mt-0.5 shrink-0 ${config.color}`} />
+                          )}
+                          <div className="min-w-0">
+                            <p className="text-xs font-bold text-ink">{step.step}</p>
+                            <p className="text-[11px] font-mono text-brand/90 break-all">{step.detail}</p>
+                          </div>
+                        </motion.div>
+                      );
+                    })}
+                  </div>
+                );
+              }
 
               return (
                 <div key={pi}>

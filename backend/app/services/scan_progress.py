@@ -5,8 +5,9 @@ _progress: dict[str, list[dict]] = {}
 _events: dict[str, list[asyncio.Event]] = defaultdict(list)
 
 
-def emit(scan_id: str, step: str, detail: str = "", status: str = "running", phase: str = "") -> None:
-    entry = {"step": step, "detail": detail, "status": status, "phase": phase}
+def emit(scan_id: str, step: str, detail: str = "", status: str = "running", phase: str = "", **extra) -> None:
+    """Record a progress step. Extra keyword args (e.g. ``page``) are passed through to the client."""
+    entry = {"step": step, "detail": detail, "status": status, "phase": phase, **extra}
     _progress.setdefault(scan_id, []).append(entry)
     for event in _events.get(scan_id, []):
         event.set()

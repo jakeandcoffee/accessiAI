@@ -11,12 +11,19 @@ export async function getWebsite(id: string): Promise<Website> {
   return data;
 }
 
-export async function createWebsite(payload: { name: string; url: string }): Promise<Website> {
+export async function createWebsite(payload: {
+  name: string;
+  url: string;
+  page_urls?: string[];
+}): Promise<Website> {
   const { data } = await api.post<Website>("/api/websites", payload);
   return data;
 }
 
-export async function updateWebsite(id: string, payload: { name?: string; url?: string }): Promise<Website> {
+export async function updateWebsite(
+  id: string,
+  payload: { name?: string; url?: string; page_urls?: string[] },
+): Promise<Website> {
   const { data } = await api.put<Website>(`/api/websites/${id}`, payload);
   return data;
 }

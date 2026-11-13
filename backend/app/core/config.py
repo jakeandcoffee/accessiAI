@@ -11,6 +11,8 @@ class Settings(BaseSettings):
     ANTHROPIC_API_KEY: str = ""
     FRONTEND_URL: str = "http://localhost:5173"
     ENVIRONMENT: str = "development"
+    # Upper bound on pages crawled by a "Scan all" scan
+    SCAN_ALL_MAX_PAGES: int = 50
 
 
 settings = Settings()

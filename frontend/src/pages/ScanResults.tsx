@@ -1,3 +1,4 @@
+import { useMemo, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ArrowLeft, Download } from "lucide-react";
@@ -6,6 +7,7 @@ import { Card } from "../components/common/Card";
 import { Button } from "../components/common/Button";
 import { ScanProgress } from "../components/scanner/ScanProgress";
 import { ScanResultsSummary } from "../components/scanner/ScanResults";
+import { ALL_PAGES, PageBreakdown } from "../components/scanner/PageBreakdown";
 import { ViolationList } from "../components/violations/ViolationList";
 import { SecuritySection } from "../components/security/SecuritySection";
 import { CardSkeleton } from "../components/common/Skeleton";
@@ -14,7 +16,25 @@ import { downloadReport } from "../services/scanService";
 export function ScanResultsPage() {
   const { id } = useParams<{ id: string }>();
   const { data: scan, isLoading: loadingScan } = useScan(id!);
-  const { data: violations, isLoading: loadingViolations } = useViolations(id!);
+  // Violations are only committed when the scan finishes; fetching earlier
+  // would cache an empty list that never refreshes.
+  const { data: violations, isLoading: loadingViolations } = useViolations(
+    id!,
+    scan?.status === "completed",
+  );
+  const [selectedPage, setSelectedPage] = useState(ALL_PAGES);
+
+  const pages = useMemo(() => scan?.page_results ?? [], [scan?.page_results]);
+  const isMultiPage = pages.length > 1;
+  const defaultPageUrl = pages[0]?.url ?? "";
+  const pageOrder = useMemo(() => pages.map((p) => p.url), [pages]);
+  const selectedResult = pages.find((p) => p.url === selectedPage);
+
+  const visibleViolations = useMemo(() => {
+    const all = violations ?? [];
+    if (selectedPage === ALL_PAGES) return all;
+    return all.filter((v) => (v.page_url || defaultPageUrl) === selectedPage);
+  }, [violations, selectedPage, defaultPageUrl]);
 
   if (loadingScan) {
     return (
@@ -46,6 +66,9 @@ export function ScanResultsPage() {
             <h1 className="text-2xl font-bold text-ink">Scan Results</h1>
             <p className="text-sm text-muted mt-1">
               {new Date(scan.scan_started_at).toLocaleString()}
+              <span className="mx-2 text-muted/40">·</span>
+              {scan.scan_mode === "all" ? "Scan all (discovered pages)" : "Scan (entered pages)"}
+              {pages.length > 0 && ` · ${pages.length} page${pages.length === 1 ? "" : "s"}`}
             </p>
           </div>
           {scan.status === "completed" && (
@@ -74,21 +97,60 @@ export function ScanResultsPage() {
           scanId={scan.id}
           status={scan.status}
           startedAt={scan.scan_started_at}
+          scanMode={scan.scan_mode}
         />
+      )}
+
+      {scan.status === "failed" && pages.length > 0 && (
+        <Card hoverable={false}>
+          <PageBreakdown
+            pages={pages}
+            violations={[]}
+            selectedPage={selectedPage}
+            onSelectPage={setSelectedPage}
+          />
+        </Card>
       )}
 
       {scan.status === "completed" && (
         <>
           <Card hoverable={false}>
-            <ScanResultsSummary
-              score={scan.accessibility_score ?? 0}
-              violations={violations ?? []}
-            />
+            {isMultiPage && (
+              <p className="text-center text-sm text-muted mb-4">
+                {selectedResult ? (
+                  <>Score for <span className="font-mono text-ink">{selectedResult.url}</span></>
+                ) : (
+                  <>Overall score across {pages.length} pages</>
+                )}
+              </p>
+            )}
+            {selectedResult?.status === "failed" ? (
+              <p className="text-center text-red-400 py-8">
+                This page could not be scanned{selectedResult.error ? `: ${selectedResult.error}` : "."}
+              </p>
+            ) : (
+              <ScanResultsSummary
+                key={selectedPage}
+                score={selectedResult?.score ?? scan.accessibility_score ?? 0}
+                violations={visibleViolations}
+              />
+            )}
           </Card>
+
+          {pages.length > 0 && (
+            <Card hoverable={false}>
+              <PageBreakdown
+                pages={pages}
+                violations={violations ?? []}
+                selectedPage={selectedPage}
+                onSelectPage={setSelectedPage}
+              />
+            </Card>
+          )}
 
           <div>
             <h2 className="text-lg font-bold text-ink mb-4">
-              Violations ({violations?.length ?? 0})
+              Violations ({visibleViolations.length})
             </h2>
             {loadingViolations ? (
               <div className="space-y-3">
@@ -97,7 +159,11 @@ export function ScanResultsPage() {
                 ))}
               </div>
             ) : (
-              <ViolationList violations={violations ?? []} />
+              <ViolationList
+                violations={visibleViolations}
+                pageOrder={isMultiPage && selectedPage === ALL_PAGES ? pageOrder : undefined}
+                defaultPageUrl={defaultPageUrl}
+              />
             )}
           </div>
         </>

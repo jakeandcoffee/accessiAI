@@ -25,6 +25,7 @@ def _to_response(website: Website) -> WebsiteResponse:
         id=website.id,
         name=website.name,
         url=website.url,
+        page_urls=website.page_urls or [],
         created_at=website.created_at,
         latest_score=latest_score,
         last_scanned=last_scanned,
@@ -51,11 +52,20 @@ async def create_website(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    website = Website(user_id=current_user.id, name=data.name, url=str(data.url))
+    website = Website(
+        user_id=current_user.id,
+        name=data.name,
+        url=str(data.url),
+        page_urls=[str(u) for u in data.page_urls],
+    )
     db.add(website)
     await db.flush()
     return WebsiteResponse(
-        id=website.id, name=website.name, url=website.url, created_at=website.created_at
+        id=website.id,
+        name=website.name,
+        url=website.url,
+        page_urls=website.page_urls or [],
+        created_at=website.created_at,
     )
 
 
@@ -94,10 +104,16 @@ async def update_website(
         website.name = data.name
     if data.url is not None:
         website.url = str(data.url)
+    if data.page_urls is not None:
+        website.page_urls = [str(u) for u in data.page_urls]
 
     await db.flush()
     return WebsiteResponse(
-        id=website.id, name=website.name, url=website.url, created_at=website.created_at
+        id=website.id,
+        name=website.name,
+        url=website.url,
+        page_urls=website.page_urls or [],
+        created_at=website.created_at,
     )
 
 

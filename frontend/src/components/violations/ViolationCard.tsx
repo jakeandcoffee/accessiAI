@@ -50,7 +50,7 @@ export function ViolationCard({ violation, index }: ViolationCardProps) {
           <p className="text-sm text-ink mt-1 truncate">{violation.description}</p>
         </div>
         {violation.wcag_criteria && (
-          <span className="text-xs text-muted whitespace-nowrap">WCAG {violation.wcag_criteria}</span>
+          <span className="text-xs text-muted whitespace-nowrap">Standards: {violation.wcag_criteria}</span>
         )}
       </button>
 

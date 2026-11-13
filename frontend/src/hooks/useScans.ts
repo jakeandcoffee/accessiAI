@@ -39,11 +39,11 @@ export function useTriggerScan() {
   });
 }
 
-export function useViolations(scanId: string) {
+export function useViolations(scanId: string, enabled = true) {
   return useQuery({
     queryKey: ["violations", scanId],
     queryFn: () => scanService.getViolations(scanId),
-    enabled: !!scanId,
+    enabled: !!scanId && enabled,
   });
 }
 

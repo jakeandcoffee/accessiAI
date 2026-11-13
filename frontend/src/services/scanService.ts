@@ -1,8 +1,16 @@
 import api from "./api";
-import type { Scan, Violation, AIAnalysis, DashboardData } from "../types";
+import type { Scan, ScanMode, Violation, AIAnalysis, DashboardData } from "../types";
 
-export async function triggerScan(websiteId: string): Promise<Scan> {
-  const { data } = await api.post<Scan>(`/api/websites/${websiteId}/scans`);
+export async function triggerScan({
+  websiteId,
+  mode = "entered",
+}: {
+  websiteId: string;
+  mode?: ScanMode;
+}): Promise<Scan> {
+  const { data } = await api.post<Scan>(`/api/websites/${websiteId}/scans`, null, {
+    params: { mode },
+  });
   return data;
 }
 
