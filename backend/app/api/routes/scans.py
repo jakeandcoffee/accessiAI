@@ -197,8 +197,14 @@ async def get_scan(
         select(Scan)
         .join(Website)
         .where(Scan.id == scan_id, Website.user_id == current_user.id)
+        .options(selectinload(Scan.website))
     )
     scan = result.scalar_one_or_none()
     if not scan:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Scan not found")
-    return ScanResponse.model_validate(scan)
+    return ScanResponse.model_validate(scan).model_copy(
+        update={
+            "website_name": scan.website.name,
+            "website_url": scan.website.url,
+        }
+    )

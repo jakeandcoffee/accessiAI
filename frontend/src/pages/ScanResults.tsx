@@ -76,14 +76,14 @@ export function ScanResultsPage() {
               <Button
                 variant="secondary"
                 size="sm"
-                onClick={() => downloadReport(scan.id, "json")}
+                onClick={() => downloadReport(scan.id, "json", scan.website_name)}
               >
                 <Download className="w-4 h-4" /> JSON
               </Button>
               <Button
                 variant="secondary"
                 size="sm"
-                onClick={() => downloadReport(scan.id, "pdf")}
+                onClick={() => downloadReport(scan.id, "pdf", scan.website_name)}
               >
                 <Download className="w-4 h-4" /> PDF
               </Button>

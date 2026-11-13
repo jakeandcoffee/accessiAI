@@ -28,7 +28,7 @@ def _esc(text: str) -> str:
 BG_DARK = colors.Color(0.04, 0.04, 0.08)
 BG_CARD = colors.Color(0.08, 0.08, 0.14)
 BG_ROW_ALT = colors.Color(0.06, 0.06, 0.11)
-BORDER_COLOR = colors.Color(1, 1, 1, 0.08)
+BORDER_COLOR = colors.Color(0.16, 0.16, 0.23)
 TEXT_PRIMARY = colors.Color(0.89, 0.91, 0.94)
 TEXT_MUTED = colors.Color(0.55, 0.58, 0.65)
 BRAND = colors.Color(0.47, 0.47, 0.95)
@@ -149,7 +149,9 @@ def _page_score_text(page_result: dict | None) -> str:
 def _on_page(canvas, doc):
     canvas.saveState()
     canvas.setFillColor(BG_DARK)
-    canvas.rect(0, 0, A4[0], A4[1], fill=1, stroke=0)
+    canvas.setStrokeColor(BG_DARK)
+    # Slight bleed so viewers never expose a white edge around the page
+    canvas.rect(-2, -2, A4[0] + 4, A4[1] + 4, fill=1, stroke=1)
     canvas.restoreState()
 
 
@@ -193,7 +195,7 @@ def generate_pdf_report(
     # --- Styles ---
     s_title = ParagraphStyle(
         "DarkTitle", parent=styles["Title"],
-        fontSize=24, textColor=TEXT_PRIMARY, spaceAfter=4,
+        fontSize=24, textColor=TEXT_PRIMARY, spaceAfter=4, alignment=0,
     )
     s_subtitle = ParagraphStyle(
         "DarkSubtitle", parent=styles["Normal"],
@@ -253,8 +255,8 @@ def generate_pdf_report(
     ))
 
     elements.append(HRFlowable(
-        width="100%", thickness=0.5,
-        color=colors.Color(1, 1, 1, 0.08),
+        width="100%", thickness=1.5,
+        color=BRAND,
         spaceAfter=16,
     ))
 
@@ -265,15 +267,15 @@ def generate_pdf_report(
     sc = _score_color(score)
 
     summary_data = [[
-        Paragraph(f'<font color="#8b8fa5">Website</font><br/><font size="11"><b>{_esc(scan.website.name)}</b></font>', s_body),
+        Paragraph(f'<font color="#8b8fa5">Website</font><br/><font size="13" color="#9d9dff"><b>{_esc(scan.website.name)}</b></font>', s_body),
         Paragraph(
             f'<font color="#8b8fa5">Pages Scanned</font><br/><font size="14"><b>{len(page_groups)}</b></font>'
             if len(page_groups) > 1
-            else f'<font color="#8b8fa5">URL</font><br/><font size="9">{_esc(page_groups[0][0])}</font>',
+            else f'<font color="#8b8fa5">URL</font><br/><font size="9" color="#38bdf8"><u>{_esc(page_groups[0][0])}</u></font>',
             s_body,
         ),
         Paragraph(f'<font color="#8b8fa5">Violations</font><br/><font size="14"><b>{scan.total_violations}</b></font>', s_body),
-        Paragraph(f'<font color="#8b8fa5">Overall Score</font><br/><font size="18" color="#{sc.hexval()[2:]}"><b>{score:.0f}</b></font><font size="9" color="#8b8fa5"> / 100</font>', s_body),
+        Paragraph(f'<font color="#8b8fa5">Overall Score</font><br/><font size="26" color="#{sc.hexval()[2:]}"><b>{score:.0f}</b></font><font size="9" color="#8b8fa5"> / 100</font>', ParagraphStyle("ScoreCell", parent=s_body, leading=30)),
     ]]
 
     col_w = page_w / 4
@@ -413,7 +415,7 @@ def generate_pdf_report(
         page_banner = Table([[
             Paragraph(
                 f'<font color="#9d9dff"><b>Page {page_num} of {len(page_groups)}</b></font><br/>'
-                f'<font size="10"><b>{_esc(page_url)}</b></font>',
+                f'<font size="10" color="#38bdf8"><u><b>{_esc(page_url)}</b></u></font>',
                 s_body,
             ),
             Paragraph(

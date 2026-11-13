@@ -18,9 +18,10 @@ from reportlab.platypus import (
 BG_DARK = colors.Color(0.04, 0.04, 0.08)
 BG_CARD = colors.Color(0.08, 0.08, 0.14)
 BG_ROW_ALT = colors.Color(0.06, 0.06, 0.11)
-BORDER_COLOR = colors.Color(1, 1, 1, 0.08)
+BORDER_COLOR = colors.Color(0.16, 0.16, 0.23)
 TEXT_PRIMARY = colors.Color(0.89, 0.91, 0.94)
 TEXT_MUTED = colors.Color(0.55, 0.58, 0.65)
+BRAND = colors.Color(0.47, 0.47, 0.95)
 
 SEVERITY_COLORS = {
     "critical": colors.Color(0.95, 0.28, 0.28),
@@ -66,7 +67,9 @@ def _score_color(score: int) -> colors.Color:
 def _on_page(canvas, doc):
     canvas.saveState()
     canvas.setFillColor(BG_DARK)
-    canvas.rect(0, 0, A4[0], A4[1], fill=1, stroke=0)
+    canvas.setStrokeColor(BG_DARK)
+    # Slight bleed so viewers never expose a white edge around the page
+    canvas.rect(-2, -2, A4[0] + 4, A4[1] + 4, fill=1, stroke=1)
     canvas.restoreState()
 
 
@@ -85,7 +88,7 @@ def generate_security_pdf_report(url: str, results: dict) -> io.BytesIO:
 
     s_title = ParagraphStyle(
         "DarkTitle", parent=styles["Title"],
-        fontSize=24, textColor=TEXT_PRIMARY, spaceAfter=4,
+        fontSize=24, textColor=TEXT_PRIMARY, spaceAfter=4, alignment=0,
     )
     s_subtitle = ParagraphStyle(
         "DarkSubtitle", parent=styles["Normal"],
@@ -127,8 +130,8 @@ def generate_security_pdf_report(url: str, results: dict) -> io.BytesIO:
 
     elements.append(Paragraph(f"Generated on {scan_date}", s_subtitle))
     elements.append(HRFlowable(
-        width="100%", thickness=0.5,
-        color=colors.Color(1, 1, 1, 0.08),
+        width="100%", thickness=1.5,
+        color=BRAND,
         spaceAfter=16,
     ))
 
@@ -138,8 +141,8 @@ def generate_security_pdf_report(url: str, results: dict) -> io.BytesIO:
     total = results.get("total_findings", 0)
 
     summary_data = [[
-        Paragraph(f'<font color="#8b8fa5">Target URL</font><br/><font size="9"><b>{_esc(url)}</b></font>', s_body),
-        Paragraph(f'<font color="#8b8fa5">Security Score</font><br/><font size="18" color="#{sc.hexval()[2:]}"><b>{score}</b></font><font size="9" color="#8b8fa5"> / 100</font>', s_body),
+        Paragraph(f'<font color="#8b8fa5">Target URL</font><br/><font size="9" color="#38bdf8"><u><b>{_esc(url)}</b></u></font>', s_body),
+        Paragraph(f'<font color="#8b8fa5">Security Score</font><br/><font size="26" color="#{sc.hexval()[2:]}"><b>{score}</b></font><font size="9" color="#8b8fa5"> / 100</font>', ParagraphStyle("ScoreCell", parent=s_body, leading=30)),
         Paragraph(f'<font color="#8b8fa5">Findings</font><br/><font size="14"><b>{total}</b></font>', s_body),
     ]]
 

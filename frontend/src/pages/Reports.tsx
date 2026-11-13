@@ -81,21 +81,21 @@ export function Reports() {
                   <Button
                     variant="secondary"
                     size="sm"
-                    onClick={() => downloadReport(scan.id, "json")}
+                    onClick={() => downloadReport(scan.id, "json", scan.website_name)}
                   >
                     <Download className="w-3.5 h-3.5" /> JSON
                   </Button>
                   <Button
                     variant="secondary"
                     size="sm"
-                    onClick={() => downloadReport(scan.id, "pdf")}
+                    onClick={() => downloadReport(scan.id, "pdf", scan.website_name)}
                   >
                     <Download className="w-3.5 h-3.5" /> PDF
                   </Button>
                   <Button
                     variant="secondary"
                     size="sm"
-                    onClick={() => downloadReport(scan.id, "md")}
+                    onClick={() => downloadReport(scan.id, "md", scan.website_name)}
                   >
                     <Download className="w-3.5 h-3.5" /> MD
                   </Button>

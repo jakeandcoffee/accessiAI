@@ -47,7 +47,11 @@ export async function getDashboard(): Promise<DashboardData> {
   return data;
 }
 
-export async function downloadReport(scanId: string, format: "pdf" | "json" | "md"): Promise<void> {
+export async function downloadReport(
+  scanId: string,
+  format: "pdf" | "json" | "md",
+  websiteName?: string | null,
+): Promise<void> {
   const pathMap = {
     pdf: `/api/scans/${scanId}/report/pdf`,
     json: `/api/scans/${scanId}/report`,
@@ -59,7 +63,17 @@ export async function downloadReport(scanId: string, format: "pdf" | "json" | "m
   const url = window.URL.createObjectURL(new Blob([response.data]));
   const link = document.createElement("a");
   link.href = url;
-  link.download = `accessibility-report-${scanId}.${format}`;
+  const filename = websiteName
+    ?.trim()
+    .replace(/[<>:"/\\|?*]/g, "-")
+    .split("")
+    .map((character) => {
+      const code = character.charCodeAt(0);
+      return code < 32 || code === 127 ? "-" : character;
+    })
+    .join("")
+    .replace(/[. ]+$/, "") || "accessibility-report";
+  link.download = `${filename}.${format}`;
   document.body.appendChild(link);
   link.click();
   link.remove();
